@@ -318,7 +318,7 @@ namespace bs
 
 	}
 
-	void CoreApplication::runMainLoop(UINT32 steps)
+	void CoreApplication::runMainSteps(UINT32 steps)
 	{
 		mRunMainLoop = true;
 
@@ -326,6 +326,7 @@ namespace bs
 		while(step < steps)
 		{
 			update();
+			++step;
 		}
 
 		// Wait until last core frame is finished before exiting
