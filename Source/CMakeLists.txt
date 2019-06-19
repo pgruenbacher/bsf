@@ -211,6 +211,7 @@ add_subdirectory(Plugins/bsfFBXImporter)
 add_subdirectory(Plugins/bsfFontImporter)
 add_subdirectory(Plugins/bsfFreeImgImporter)
 add_subdirectory(Plugins/bsfSL)
+add_subdirectory(Plugins/bsfImgui)
 
 ## Tests
 if(BUILD_TESTS)

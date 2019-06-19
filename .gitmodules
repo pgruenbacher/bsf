@@ -1,3 +1,9 @@
 [submodule "Source/Plugins/bsfEnTT/ThirdParty/EnTT"]
 	path = Source/Plugins/bsfEnTT/ThirdParty/EnTT
 	url = https://github.com/skypjack/EnTT.git
+[submodule "Source/Plugins/bsfImgui/ThirdParty/imgui"]
+	path = Source/Plugins/bsfImgui/ThirdParty/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "Source/Plugins/bsfImgui/ThirdParty/ImGuizmo"]
+	path = Source/Plugins/bsfImgui/ThirdParty/ImGuizmo
+	url = https://github.com/CedricGuillemet/ImGuizmo
