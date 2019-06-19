@@ -7,3 +7,6 @@
 [submodule "Source/Plugins/bsfImgui/ThirdParty/ImGuizmo"]
 	path = Source/Plugins/bsfImgui/ThirdParty/ImGuizmo
 	url = https://github.com/CedricGuillemet/ImGuizmo
+[submodule "Source/Plugins/bsfImgui/ThirdParty/imgui-goodies"]
+	path = Source/Plugins/bsfImgui/ThirdParty/imgui-goodies
+	url = https://github.com/aoterodelaroza/imgui-goodies
