@@ -5,30 +5,36 @@
 #include "Input/BsInputFwd.h"
 #include "Platform/BsPlatform.h"
 #include "Platform/BsCursor.h"
+#include "Input/BsInput.h"
+#include "BsApplication.h"
 
 namespace bs {
 
 
 enum BsfClientApi
 {
-    GlfwClientApi_Unknown,
-    GlfwClientApi_OpenGL,
-    GlfwClientApi_Vulkan
+    BsfClientApi_Unknown,
+    BsfClientApi_OpenGL,
+    BsfClientApi_Vulkan
 };
 
-static const char* ImGui_ImplGlfw_GetClipboardText(void* user_data)
+
+static bool g_MousePressed[3] = { false, false, false };
+static CursorType g_MouseCursors[ImGuiMouseCursor_COUNT] = {};
+static double               g_Time = 0.0;
+
+
+static const char* ImGui_ImplBsf_GetClipboardText(void* user_data)
 {
     return Platform::copyFromClipboard().c_str();
 }
 
-static void ImGui_ImplGlfw_SetClipboardText(void* user_data, const char* text)
+static void ImGui_ImplBsf_SetClipboardText(void* user_data, const char* text)
 {
     Platform::copyToClipboard(text);
 }
 
-
-static CursorType g_MouseCursors[ImGuiMouseCursor_COUNT] = {
-};
+void connectInputs();
 
 static void initCursorMap() {
  	g_MouseCursors[ImGuiMouseCursor_Arrow] = CursorType::Arrow;
@@ -41,7 +47,7 @@ static void initCursorMap() {
     g_MouseCursors[ImGuiMouseCursor_Hand] = CursorType::Deny;
 }
 
-static bool ImGui_ImplGlfw_Init(RenderWindow* window, bool install_callbacks, BsfClientApi client_api)
+static bool ImGui_ImplBsf_Init(RenderWindow* window, bool install_callbacks, BsfClientApi client_api)
 {
     // g_Window = window;
     // g_Time = 0.0;
@@ -75,34 +81,25 @@ static bool ImGui_ImplGlfw_Init(RenderWindow* window, bool install_callbacks, Bs
     io.KeyMap[ImGuiKey_Y] = BC_Y;
     io.KeyMap[ImGuiKey_Z] = BC_Z;
 
-    io.SetClipboardTextFn = ImGui_ImplGlfw_SetClipboardText;
-    io.GetClipboardTextFn = ImGui_ImplGlfw_GetClipboardText;
-//     io.ClipboardUserData = g_Window;
-// #if defined(_WIN32)
-//     io.ImeWindowHandle = (void*)glfwGetWin32Window(g_Window);
-// #endif
+    io.SetClipboardTextFn = ImGui_ImplBsf_SetClipboardText;
+    io.GetClipboardTextFn = ImGui_ImplBsf_GetClipboardText;
 
-//     // Chain GLFW callbacks: our callbacks will call the user's previously installed callbacks, if any.
-//     g_PrevUserCallbackMousebutton = NULL;
-//     g_PrevUserCallbackScroll = NULL;
-//     g_PrevUserCallbackKey = NULL;
-//     g_PrevUserCallbackChar = NULL;
-//     if (install_callbacks)
-//     {
-//         g_PrevUserCallbackMousebutton = glfwSetMouseButtonCallback(window, ImGui_ImplGlfw_MouseButtonCallback);
-//         g_PrevUserCallbackScroll = glfwSetScrollCallback(window, ImGui_ImplGlfw_ScrollCallback);
-//         g_PrevUserCallbackKey = glfwSetKeyCallback(window, ImGui_ImplGlfw_KeyCallback);
-//         g_PrevUserCallbackChar = glfwSetCharCallback(window, ImGui_ImplGlfw_CharCallback);
-//     }
-
-//     g_ClientApi = client_api;
     initCursorMap();
+    connectInputs();
     return true;
 }
 
+bool ImGui_ImplBsf_InitForOpenGL(RenderWindow* window, bool install_callbacks)
+{
+    return ImGui_ImplBsf_Init(window, install_callbacks, BsfClientApi_OpenGL);
+}
 
+bool ImGui_ImplBsf_InitForVulkan(RenderWindow* window, bool install_callbacks)
+{
+    return ImGui_ImplBsf_Init(window, install_callbacks, BsfClientApi_Vulkan);
+}
 
-static void ImGui_ImplGlfw_UpdateMouseCursor()
+static void ImGui_ImplBsf_UpdateMouseCursor()
 {
     ImGuiIO& io = ImGui::GetIO();
     if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange))
@@ -122,38 +119,80 @@ static void ImGui_ImplGlfw_UpdateMouseCursor()
     }
 }
 
-// static void ImGui_ImplGlfw_UpdateMousePosAndButtons()
-// {
-//     // Update buttons
-//     ImGuiIO& io = ImGui::GetIO();
-//     for (int i = 0; i < IM_ARRAYSIZE(io.MouseDown); i++)
-//     {
-//         // If a mouse press event came, always pass it as "mouse held this frame", so we don't miss click-release events that are shorter than 1 frame.
-//         io.MouseDown[i] = g_MouseJustPressed[i] || glfwGetMouseButton(g_Window, i) != 0;
-//         g_MouseJustPressed[i] = false;
-//     }
+static HEvent g_OnPointerMovedConn;
+static HEvent g_OnPointerPressedConn;
+static HEvent g_OnPointerReleasedConn;
+static HEvent g_OnPointerDoubleClick;
+static HEvent g_OnTextInputConn;
 
-//     // Update mouse position
-//     const ImVec2 mouse_pos_backup = io.MousePos;
-//     io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
-// #ifdef __EMSCRIPTEN__
-//     const bool focused = true; // Emscripten
-// #else
-//     const bool focused = glfwGetWindowAttrib(g_Window, GLFW_FOCUSED) != 0;
-// #endif
-//     if (focused)
-//     {
-//         if (io.WantSetMousePos)
-//         {
-//             glfwSetCursorPos(g_Window, (double)mouse_pos_backup.x, (double)mouse_pos_backup.y);
-//         }
-//         else
-//         {
-//             double mouse_x, mouse_y;
-//             glfwGetCursorPos(g_Window, &mouse_x, &mouse_y);
-//             io.MousePos = ImVec2((float)mouse_x, (float)mouse_y);
-//         }
-//     }
-// }
+
+void onPointerMoved(const PointerEvent& event) {
+    ImGuiIO& io = ImGui::GetIO();
+    io.MousePos.x = event.screenPos.x;
+    io.MousePos.y = event.screenPos.y;
+
+    if (event.mouseWheelScrollAmount > 0) {
+        io.MouseWheel += event.mouseWheelScrollAmount;
+    } else if (event.mouseWheelScrollAmount < 0) {
+        io.MouseWheel -= event.mouseWheelScrollAmount;
+    }
+}
+void onPointerPressed(const PointerEvent& event) {
+    ImGuiIO& io = ImGui::GetIO();
+    io.MouseDown[0] = event.buttonStates[0];
+    io.MouseDown[1] = event.buttonStates[1];
+    io.MouseDown[2] = event.buttonStates[2];
+}
+void onPointerReleased(const PointerEvent& event) {
+    ImGuiIO& io = ImGui::GetIO();
+    io.MouseDown[0] = event.buttonStates[0];
+    io.MouseDown[1] = event.buttonStates[1];
+    io.MouseDown[2] = event.buttonStates[2];
+}
+void onPointerDoubleClick(const PointerEvent& event) {
+    ImGuiIO& io = ImGui::GetIO();
+    io.MouseDown[0] = event.buttonStates[0];
+    io.MouseDown[1] = event.buttonStates[1];
+    io.MouseDown[2] = event.buttonStates[2];
+}
+void onCharInput(const TextInputEvent& event) {
+
+    // io.KeysDown[]
+    std::cout << "CHAR INPUT " << std::endl;
+}
+
+void connectInputs() {
+
+    g_OnPointerMovedConn = gInput().onPointerMoved.connect(&onPointerMoved);
+    g_OnPointerPressedConn = gInput().onPointerPressed.connect(&onPointerPressed);
+    g_OnPointerReleasedConn = gInput().onPointerReleased.connect(&onPointerReleased);
+    g_OnPointerDoubleClick = gInput().onPointerDoubleClick.connect(&onPointerDoubleClick);
+    g_OnTextInputConn = gInput().onCharInput.connect(&onCharInput);
+    // g_OnInputCommandConn = gInput().onInputCommand.connect(onInputCommandEntered);
+}
+
+
+void ImGui_ImplBsf_NewFrame() {
+    ImGuiIO& io = ImGui::GetIO();
+    IM_ASSERT(io.Fonts->IsBuilt() && "Font atlas not built! It is generally built by the renderer back-end. Missing call to renderer _NewFrame() function? e.g. ImGui_ImplOpenGL3_NewFrame().");
+
+    int w, h;
+    int display_w, display_h;
+
+    SPtr<RenderWindow> primaryWindow = gCoreApplication().getPrimaryWindow();
+    const auto& properties = primaryWindow->getProperties();
+    w = properties.width;
+    h = properties.height;
+    // get frame buffer size ?
+    display_w = properties.width;
+    display_h = properties.height;
+    io.DisplaySize = ImVec2((float)w, (float)h);
+    if (w > 0 && h > 0)
+        io.DisplayFramebufferScale = ImVec2((float)display_w / w, (float)display_h / h);
+    float current_time = gTime().getTime();
+    io.DeltaTime = g_Time > 0.0 ? (float)(current_time - g_Time) : (float)(1.0f/60.0f);
+    g_Time = current_time;
+
+}
 
 }  // namespace bs

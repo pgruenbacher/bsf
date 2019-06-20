@@ -15,7 +15,7 @@ IMGUI_IMPL_API void     ImGui_ImplBsf_NewFrame();
 
 // InitXXX function with 'install_callbacks=true': install GLFW callbacks. They will call user's previously installed callbacks, if any.
 // InitXXX function with 'install_callbacks=false': do not install GLFW callbacks. You will need to call them yourself from your own GLFW callbacks.
-IMGUI_IMPL_API void     ImGui_ImplBsf_MouseButtonCallback(bs::RenderWindow* window, int button, int action, int mods);
-IMGUI_IMPL_API void     ImGui_ImplBsf_ScrollCallback(bs::RenderWindow* window, double xoffset, double yoffset);
-IMGUI_IMPL_API void     ImGui_ImplBsf_KeyCallback(bs::RenderWindow* window, int key, int scancode, int action, int mods);
-IMGUI_IMPL_API void     ImGui_ImplBsf_CharCallback(bs::RenderWindow* window, unsigned int c);
+// IMGUI_IMPL_API void     ImGui_ImplBsf_MouseButtonCallback(bs::RenderWindow* window, int button, int action, int mods);
+// IMGUI_IMPL_API void     ImGui_ImplBsf_ScrollCallback(bs::RenderWindow* window, double xoffset, double yoffset);
+// IMGUI_IMPL_API void     ImGui_ImplBsf_KeyCallback(bs::RenderWindow* window, int key, int scancode, int action, int mods);
+// IMGUI_IMPL_API void     ImGui_ImplBsf_CharCallback(bs::RenderWindow* window, unsigned int c);
