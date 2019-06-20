@@ -308,8 +308,7 @@ TEST_F(ECSRenderableTestSuite, TestReflection) {
 	// addRadialLight();
 	// addSpotLight();
 
-	// Application::instance().runMainSteps(4);
-	Application::instance().runMainLoop();
+	Application::instance().runMainSteps(4);
 
 	bool forceRemoveAll = true;
 	SceneManager::instance().clearScene(forceRemoveAll);

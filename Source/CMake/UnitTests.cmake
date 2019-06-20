@@ -40,6 +40,7 @@ target_compile_options(unit_tests PUBLIC -msse4.1)
 target_include_directories(unit_tests PRIVATE
   "${PROJECT_BINARY_DIR}/Generated/bsfUtility"
   "Plugins/bsfEnTT/ThirdParty/EnTT/src"
+  "Plugins/bsfImgui/ThirdParty/imgui"
   "Plugins/bsfRenderBeast"
   "Plugins"
   "Foundation/bsfCore"
@@ -47,7 +48,7 @@ target_include_directories(unit_tests PRIVATE
   "Foundation/bsfUtility/ThirdParty"
 )
 
-target_link_libraries(unit_tests gtest_main bsf bsfEnTT)
+target_link_libraries(unit_tests gtest_main bsf bsfEnTT bsfImgui)
 
 # this isn't working.
 gtest_discover_tests(unit_tests)
@@ -56,3 +57,4 @@ gtest_discover_tests(unit_tests)
 add_custom_target(check ${CMAKE_COMMAND} -E env CTEST_OUTPUT_ON_FAILURE=1
                   ${CMAKE_CTEST_COMMAND} -C $<CONFIG> --verbose
                   WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+

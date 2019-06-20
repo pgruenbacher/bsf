@@ -8,6 +8,7 @@ file(GLOB SRCS
 	Src/*.cpp
 )
 
+list(FILTER SRCS EXCLUDE REGEX ".*test.cpp")
 
 add_library(bsfImgui SHARED ${SRCS})
 
@@ -30,3 +31,6 @@ target_include_directories(bsfImgui PUBLIC
 	# $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include/bsfCore>
 	# $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include/bsfEngine>
 )
+
+# for testing hacking. shoudl use bsf render api asap.
+target_link_libraries(bsfImgui GL)
