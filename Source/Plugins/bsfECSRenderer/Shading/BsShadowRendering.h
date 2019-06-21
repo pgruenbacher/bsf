@@ -12,7 +12,7 @@
 #include "Image/BsTextureAtlasLayout.h"
 #include "BsRendererLight.h"
 
-#include "bsfEnTT/fwd.h"
+#include "BsEnTTFwd.h"
 #include <entt/entity/entity.hpp>
 
 namespace bs { namespace ct

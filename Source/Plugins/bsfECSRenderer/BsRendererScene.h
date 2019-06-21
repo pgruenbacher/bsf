@@ -8,7 +8,7 @@
 #include "BsRendererParticles.h"
 #include "Shading/BsLightProbes.h"
 #include "Utility/BsSamplerOverrides.h"
-#include "bsfEnTT/fwd.h"
+#include "BsEnTTFwd.h"
 #include <bitset>
 
 namespace bs

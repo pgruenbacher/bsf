@@ -1,6 +1,6 @@
 #pragma once
 
-#include "fwd.h"
+#include "BsEnTTFwd.h"
 
 // utility methods to wrap utility actor.
 

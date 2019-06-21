@@ -2,7 +2,7 @@
 
 #include "BsPrerequisites.h"
 #include "Utility/BsModule.h"
-#include "bsfEnTT/fwd.h"
+#include "BsEnTTFwd.h"
 
 namespace bs::ecs {
 

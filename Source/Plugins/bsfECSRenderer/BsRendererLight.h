@@ -8,7 +8,7 @@
 #include "Renderer/BsLight.h"
 #include "RenderAPI/BsGpuPipelineParamInfo.h"
 
-#include "bsfEnTT/fwd.h"
+#include "BsEnTTFwd.h"
 
 namespace bs
 {

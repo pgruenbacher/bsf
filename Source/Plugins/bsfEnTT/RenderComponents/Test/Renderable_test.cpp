@@ -1,5 +1,5 @@
 #include "Testing/BsTestSuite.h"
-#include "bsfEnTT/fwd.h"
+#include "BsEnTTFwd.h"
 #include <entt/entt.hpp>
 #include "bsfEnTT/RenderComponents/ERenderable.h"
 #include "Importer/BsImporter.h"

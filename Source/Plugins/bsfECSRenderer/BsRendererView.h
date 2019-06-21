@@ -15,7 +15,7 @@
 #include "BsRenderCompositor.h"
 #include "BsRendererParticles.h"
 #include "BsRendererDecal.h"
-#include "bsfEnTT/fwd.h"
+#include "BsEnTTFwd.h"
 
 namespace bs { namespace ct
 {
