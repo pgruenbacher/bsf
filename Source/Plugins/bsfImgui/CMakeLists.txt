@@ -33,4 +33,4 @@ target_include_directories(bsfImgui PUBLIC
 )
 
 # for testing hacking. shoudl use bsf render api asap.
-target_link_libraries(bsfImgui GL)
+# target_link_libraries(bsfImgui)
