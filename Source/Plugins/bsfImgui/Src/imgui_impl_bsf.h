@@ -6,10 +6,16 @@
 
 namespace bs {
 class RenderWindow;
-IMGUI_IMPL_API bool     ImGui_ImplBsf_InitForOpenGL(bs::RenderWindow* window, bool install_callbacks = true);
-IMGUI_IMPL_API bool     ImGui_ImplBsf_InitForVulkan(bs::RenderWindow* window, bool install_callbacks = true);
+IMGUI_IMPL_API bool     ImGui_ImplBsf_Init(bs::RenderWindow* window, bool install_callbacks = true);
+// IMGUI_IMPL_API bool     ImGui_ImplBsf_InitForVulkan(bs::RenderWindow* window, bool install_callbacks = true);
 IMGUI_IMPL_API void     ImGui_ImplBsf_Shutdown();
 IMGUI_IMPL_API void     ImGui_ImplBsf_NewFrame();
+
+bool ImGui_ImplBsf_CreateFontsTexture();
+}
+
+namespace bs::ct {
+	void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data);
 }
 
 

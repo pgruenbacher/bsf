@@ -3,6 +3,59 @@
 #include "BsPrerequisites.h"
 #include "RenderAPI/BsBlendState.h"
 #include "Renderer/BsParamBlocks.h"
+#include "Debug/BsBitmapWriter.h"
+// #include "Mesh/BsMesh.h"
+#include "RenderAPI/BsVertexDataDesc.h"
+#include "Mesh/BsMeshHeap.h"
+// #include "Mesh/BsTransientMesh.h"
+#include "RenderAPI/BsIndexBuffer.h"
+#include "RenderAPI/BsVertexBuffer.h"
+
+namespace bs {	
+
+	class ImguiRenderer {
+		ImguiRenderer() {
+
+				auto vertexDeclDesc = bs_shared_ptr_new<VertexDataDesc>();
+				vertexDeclDesc->addVertElem(VET_FLOAT2, VES_POSITION);
+				vertexDeclDesc->addVertElem(VET_FLOAT2, VES_TEXCOORD);
+				vertexDeclDesc->addVertElem(VET_COLOR, VES_COLOR);
+				vertexDecl = VertexDeclaration::create(vertexDeclDesc);
+
+				// UINT32 iniitialVertices = 1000;
+				// UINT32 initialIndices = 3000;
+				// meshHeap = MeshHeap::create(iniitialVertices, initialIndices, vertexDeclDesc);
+		}
+
+		public:
+			// SPtr<TransientMesh> createMesh(ImDrawList* drawList) {
+   //      MESH_DESC meshDesc;
+   //      meshDesc.vertexDesc = vertexDesc;
+   //      meshDesc.numVertices = drawList->VtxBuffer.size;
+   //      meshDesc.numIndices = drawList->IdxBuffer.size;
+   //      SPtr<MeshData> meshData = MeshData::create(meshDesc.numVertices, meshDesc.numIndices, vertexDesc);
+
+   //      const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
+   //      const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
+   //      meshData->setVertexData(VES_POSITION, vtx_buffer + IM_OFFSETOF(ImDrawVert, pos));
+   //      meshData->setVertexData(VES_TEXCOORD, vtx_buffer + IM_OFFSETOF(ImDrawVert, pos));
+   //      meshData->setVertexData(VES_POSITION, vtx_buffer + IM_OFFSETOF(ImDrawVert, pos));
+   //      // glVertexPointer(2, GL_FLOAT, sizeof(ImDrawVert), (const GLvoid*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos)));
+   //      // glTexCoordPointer(2, GL_FLOAT, sizeof(ImDrawVert), (const GLvoid*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv)));
+   //      // glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(ImDrawVert), (const GLvoid*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col)));
+
+
+
+			// 	meshHeap.alloc(meshData);
+			// }
+
+		private:
+			// SPtr<IndexBuffer> indexBuffer;
+			// SPtr<VertexBuffer> vertexBuffer;
+			SPtr<VertexDeclaration> vertexDecl;
+			// SPtr<MeshHeap> meshHeap;
+	};
+}
 
 namespace bs::ct {
 
@@ -43,7 +96,7 @@ static void ImGui_ImplBsf_SetupRenderState(ImDrawData* draw_data, int width, int
     }
 }
 
-void render(ImDrawData* draw_data) {
+void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     int fb_width = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
     int fb_height = (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
@@ -58,11 +111,28 @@ void render(ImDrawData* draw_data) {
     ImVec2 clip_off = draw_data->DisplayPos;         // (0,0) unless using multi-viewports
     ImVec2 clip_scale = draw_data->FramebufferScale; // (1,1) unless using retina display which are often (2,2)
 
+    std::cout << "CMD LISTS COUTN " << draw_data->CmdListsCount << std::endl;
     for (int n = 0; n < draw_data->CmdListsCount; n++)
     {
         const ImDrawList* cmd_list = draw_data->CmdLists[n];
-        const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
-        const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
+        // const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
+        // const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
+
+        VERTEX_BUFFER_DESC desc;
+				desc.vertexSize = sizeof(ImDrawVert); 
+				desc.numVerts = cmd_list->VtxBuffer.Size; 
+				desc.usage = GBU_STATIC;
+        SPtr<VertexBuffer> vbuf = VertexBuffer::create(desc);
+        vbuf->writeData(0, desc.numVerts, cmd_list->VtxBuffer.Data);
+
+        // assert that imgui index type is 16 bit or 2 bytes.
+        static_assert(sizeof(ImDrawIdx) == 2);
+        INDEX_BUFFER_DESC indexDesc;
+				indexDesc.indexType = IT_16BIT;
+				indexDesc.numIndices = cmd_list->IdxBuffer.Size; 
+				indexDesc.usage = GBU_STATIC; // BWT_DISCARD???
+        SPtr<IndexBuffer> ibuf = IndexBuffer::create(indexDesc);
+        ibuf->writeData(0, indexDesc.numIndices, cmd_list->VtxBuffer.Data);
 
         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
         {
@@ -83,6 +153,7 @@ void render(ImDrawData* draw_data) {
                 clip_rect.z = (pcmd->ClipRect.z - clip_off.x) * clip_scale.x;
                 clip_rect.w = (pcmd->ClipRect.w - clip_off.y) * clip_scale.y;
 
+
                 if (clip_rect.x < fb_width && clip_rect.y < fb_height && clip_rect.z >= 0.0f && clip_rect.w >= 0.0f)
                 {
 
@@ -92,109 +163,37 @@ void render(ImDrawData* draw_data) {
                     // // Bind texture, Draw
                     // glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->TextureId);
                     // glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer);
+									renderAPI.setIndexBuffer(ibuf);
+									renderAPI.setVertexBuffers(0, &vbuf, 1);
+  								renderAPI.setDrawOperation(DOT_TRIANGLE_LIST);
+									renderAPI.drawIndexed(0, indexDesc.numIndices, 0, desc.numVerts);
                 }
             }
         }
     }
 }
 
-
-// void render(ImDrawData* _drawData) {
-//   const ImGuiIO& io = ImGui::GetIO();
-//   const float width = io.DisplaySize.x;
-//   const float height = io.DisplaySize.y;
-
-//   bgfx::setViewName(m_viewId, "ImGui");
-//   bgfx::setViewMode(m_viewId, bgfx::ViewMode::Sequential);
-
-//   const bgfx::Caps* caps = bgfx::getCaps();
-//   {
-//     float ortho[16];
-//     bx::mtxOrtho(ortho, 0.0f, width, height, 0.0f, 0.0f, 1000.0f, 0.0f,
-//                  caps->homogeneousDepth);
-//     bgfx::setViewTransform(m_viewId, NULL, ortho);
-//     bgfx::setViewRect(m_viewId, 0, 0, uint16_t(width), uint16_t(height));
-//   }
-
-//   // Render command lists
-//   for (int32_t ii = 0, num = _drawData->CmdListsCount; ii < num; ++ii) {
-//     bgfx::TransientVertexBuffer tvb;
-//     bgfx::TransientIndexBuffer tib;
-
-//     const ImDrawList* drawList = _drawData->CmdLists[ii];
-//     uint32_t numVertices = (uint32_t)drawList->VtxBuffer.size();
-//     uint32_t numIndices = (uint32_t)drawList->IdxBuffer.size();
-
-//     if (!checkAvailTransientBuffers(numVertices, m_decl, numIndices)) {
-//       // not enough space in transient buffer just quit drawing the rest...
-//       break;
-//     }
-
-//     bgfx::allocTransientVertexBuffer(&tvb, numVertices, m_decl);
-//     bgfx::allocTransientIndexBuffer(&tib, numIndices);
-
-//     ImDrawVert* verts = (ImDrawVert*)tvb.data;
-//     bx::memCopy(verts, drawList->VtxBuffer.begin(),
-//                 numVertices * sizeof(ImDrawVert));
-
-//     ImDrawIdx* indices = (ImDrawIdx*)tib.data;
-//     bx::memCopy(indices, drawList->IdxBuffer.begin(),
-//                 numIndices * sizeof(ImDrawIdx));
-
-//     uint32_t offset = 0;
-//     for (const ImDrawCmd *cmd = drawList->CmdBuffer.begin(),
-//                          *cmdEnd = drawList->CmdBuffer.end();
-//          cmd != cmdEnd; ++cmd) {
-//       if (cmd->UserCallback) {
-//         cmd->UserCallback(drawList, cmd);
-//       } else if (0 != cmd->ElemCount) {
-//         uint64_t state =
-//             0 | BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_MSAA;
-
-//         bgfx::TextureHandle th = m_texture;
-//         bgfx::ProgramHandle program = m_program;
-
-//         if (NULL != cmd->TextureId) {
-//           union {
-//             ImTextureID ptr;
-//             struct {
-//               bgfx::TextureHandle handle;
-//               uint8_t flags;
-//               uint8_t mip;
-//             } s;
-//           } texture = {cmd->TextureId};
-//           state |= 0 != (IMGUI_FLAGS_ALPHA_BLEND & texture.s.flags)
-//                        ? BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
-//                                                BGFX_STATE_BLEND_INV_SRC_ALPHA)
-//                        : BGFX_STATE_NONE;
-//           th = texture.s.handle;
-//           if (0 != texture.s.mip) {
-//             const float lodEnabled[4] = {float(texture.s.mip), 1.0f, 0.0f,
-//                                          0.0f};
-//             bgfx::setUniform(u_imageLodEnabled, lodEnabled);
-//             program = m_imageProgram;
-//           }
-//         } else {
-//           state |= BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
-//                                          BGFX_STATE_BLEND_INV_SRC_ALPHA);
-//         }
-
-//         const uint16_t xx = uint16_t(bx::max(cmd->ClipRect.x, 0.0f));
-//         const uint16_t yy = uint16_t(bx::max(cmd->ClipRect.y, 0.0f));
-//         bgfx::setScissor(xx, yy,
-//                          uint16_t(bx::min(cmd->ClipRect.z, 65535.0f) - xx),
-//                          uint16_t(bx::min(cmd->ClipRect.w, 65535.0f) - yy));
-
-//         bgfx::setState(state);
-//         bgfx::setTexture(0, s_tex, th);
-//         bgfx::setVertexBuffer(0, &tvb, 0, numVertices);
-//         bgfx::setIndexBuffer(&tib, offset, cmd->ElemCount);
-//         bgfx::submit(m_viewId, program);
-//       }
-
-//       offset += cmd->ElemCount;
-//     }
-//   }
-// }
-
 } // namespace bs::ct
+
+namespace bs {
+
+
+	bool ImGui_ImplBsf_CreateFontsTexture()
+	{
+	  // Build texture atlas
+		// for now let's just use bsf default font.
+	  // Build texture atlas
+	  ImGuiIO& io = ImGui::GetIO();
+	  unsigned char* pixels;
+	  int width, height;
+	  io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);   // Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small) because it is more likely to be compatible with user's existing shaders. If your ImTextureId represent a higher-level concept than just a GL texture id, consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
+
+	  UINT32 bytesPerPixel = 32;
+		UINT32 bmpDataSize = BitmapWriter::getBMPSize(width, height, bytesPerPixel);
+		UINT8* bmpBuffer = bs_newN<UINT8>(bmpDataSize);
+
+		BitmapWriter::rawPixelsToBMP(pixels, bmpBuffer, width, height, bytesPerPixel);
+
+	  return true;
+	}
+}

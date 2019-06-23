@@ -47,8 +47,10 @@ static void initCursorMap() {
     g_MouseCursors[ImGuiMouseCursor_Hand] = CursorType::Deny;
 }
 
-static bool ImGui_ImplBsf_Init(RenderWindow* window, bool install_callbacks, BsfClientApi client_api)
+
+bool ImGui_ImplBsf_Init(RenderWindow* window, bool install_callbacks)
 {
+		ImGui_ImplBsf_CreateFontsTexture();
     // g_Window = window;
     // g_Time = 0.0;
 
@@ -89,15 +91,15 @@ static bool ImGui_ImplBsf_Init(RenderWindow* window, bool install_callbacks, Bsf
     return true;
 }
 
-bool ImGui_ImplBsf_InitForOpenGL(RenderWindow* window, bool install_callbacks)
-{
-    return ImGui_ImplBsf_Init(window, install_callbacks, BsfClientApi_OpenGL);
-}
+// bool ImGui_ImplBsf_InitForOpenGL(RenderWindow* window, bool install_callbacks)
+// {
+//     return ImGui_ImplBsf_Init(window, install_callbacks, BsfClientApi_OpenGL);
+// }
 
-bool ImGui_ImplBsf_InitForVulkan(RenderWindow* window, bool install_callbacks)
-{
-    return ImGui_ImplBsf_Init(window, install_callbacks, BsfClientApi_Vulkan);
-}
+// bool ImGui_ImplBsf_InitForVulkan(RenderWindow* window, bool install_callbacks)
+// {
+//     return ImGui_ImplBsf_Init(window, install_callbacks, BsfClientApi_Vulkan);
+// }
 
 static void ImGui_ImplBsf_UpdateMouseCursor()
 {
@@ -171,6 +173,9 @@ void connectInputs() {
     // g_OnInputCommandConn = gInput().onInputCommand.connect(onInputCommandEntered);
 }
 
+void ImGui_ImplBsf_Shutdown() {
+
+}
 
 void ImGui_ImplBsf_NewFrame() {
     ImGuiIO& io = ImGui::GetIO();
@@ -194,5 +199,6 @@ void ImGui_ImplBsf_NewFrame() {
     g_Time = current_time;
 
 }
+
 
 }  // namespace bs
