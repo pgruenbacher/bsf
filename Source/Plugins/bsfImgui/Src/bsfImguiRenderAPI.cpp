@@ -81,6 +81,11 @@ static void ImGui_ImplBsf_SetupRenderState(ImDrawData* draw_data, int width, int
 	desc.renderTargetDesc[0].dstBlend = BF_INV_SOURCE_ALPHA; // Use the inverse of the current alpha value to blend the destination (stored value)
 	desc.renderTargetDesc[0].blendOp = BO_ADD; // Add the source and destination together
 
+
+	PIPELINE_STATE_DESC pipelineDesc;
+	pipelineDesc.blendState = BlendState::create(blendDesc);
+	
+
     // Setup orthographic projection matrix
     // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right).
     {
