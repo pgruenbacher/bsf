@@ -11,7 +11,7 @@ IMGUI_IMPL_API bool     ImGui_ImplBsf_Init(bs::RenderWindow* window, bool instal
 IMGUI_IMPL_API void     ImGui_ImplBsf_Shutdown();
 IMGUI_IMPL_API void     ImGui_ImplBsf_NewFrame();
 
-bool ImGui_ImplBsf_CreateFontsTexture();
+void ImGui_ImplBsf_SetupPipeline();
 }
 
 namespace bs::ct {

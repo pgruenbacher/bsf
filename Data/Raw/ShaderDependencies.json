@@ -238,6 +238,7 @@
         }
     ],
     "GpuParticleSortPrepare.bsl": null,
+    "Imgui.bsl": null,
     "IrradianceAccumulateCubeSH.bsl": [
         {
             "Path": "PPBase.bslinc"

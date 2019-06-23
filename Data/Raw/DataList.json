@@ -419,6 +419,10 @@
             "UUID": "f4344aa8-d286-4f10-b25d-a76302487fa8"
         },
         {
+            "Path": "Imgui.bsl",
+            "UUID": "45bda2be-95e8-11e9-bc42-526af7764f64"
+        },
+        {
             "Path": "IrradianceAccumulateCubeSH.bsl",
             "UUID": "92c3b1a4-4f21-6566-7cbe-4f21bcc8e0aa"
         },

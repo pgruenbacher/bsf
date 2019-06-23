@@ -50,7 +50,7 @@ static void initCursorMap() {
 
 bool ImGui_ImplBsf_Init(RenderWindow* window, bool install_callbacks)
 {
-		ImGui_ImplBsf_CreateFontsTexture();
+		ImGui_ImplBsf_SetupPipeline();	
     // g_Window = window;
     // g_Time = 0.0;
 

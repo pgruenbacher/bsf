@@ -25,14 +25,10 @@ TEST_F(ImguiTestSuite, TestImgui) {  // Setup Dear ImGui context
     // SPtr<GLContext> ctx =
 
     ImGui_ImplBsf_Init(window.get());
-    // ImGui_ImplOpenGL2_Init();
-
-
-    // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
 
     bool done = false;	
     while(!done) {
-	    // ImGui_ImplBsf_NewFrame();
+
 	    ImGui_ImplBsf_NewFrame();
 	    ImGui::NewFrame();
 
