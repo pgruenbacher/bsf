@@ -21,7 +21,7 @@ enum BsfClientApi
 
 static bool g_MousePressed[3] = { false, false, false };
 static CursorType g_MouseCursors[ImGuiMouseCursor_COUNT] = {};
-static double               g_Time = 0.0;
+static float               g_Time = 0.0;
 
 
 static const char* ImGui_ImplBsf_GetClipboardText(void* user_data)
@@ -195,7 +195,9 @@ void ImGui_ImplBsf_NewFrame() {
     if (w > 0 && h > 0)
         io.DisplayFramebufferScale = ImVec2((float)display_w / w, (float)display_h / h);
     float current_time = gTime().getTime();
+    // std::cout << "current time " << current_time << " " << g_Time << std::endl;
     io.DeltaTime = g_Time > 0.0 ? (float)(current_time - g_Time) : (float)(1.0f/60.0f);
+    if (io.DeltaTime == 0.0) io.DeltaTime = 1.f/60.f;
     g_Time = current_time;
 
 }

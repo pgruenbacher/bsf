@@ -14,9 +14,9 @@ IMGUI_IMPL_API void     ImGui_ImplBsf_NewFrame();
 void ImGui_ImplBsf_SetupPipeline();
 }
 
-namespace bs::ct {
-	void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data);
-}
+// namespace bs::ct {
+// 	void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data);
+// }
 
 
 // InitXXX function with 'install_callbacks=true': install GLFW callbacks. They will call user's previously installed callbacks, if any.

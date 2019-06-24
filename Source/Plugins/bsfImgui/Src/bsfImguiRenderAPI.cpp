@@ -17,76 +17,80 @@
 #include "FileSystem/BsFileSystem.h"
 #include "FileSystem/BsDataStream.h"
 #include "Renderer/BsRendererUtility.h"
-
-namespace bs {	
-
-	HTexture ImGui_ImplBsf_CreateFontsTexture()
-	{
-	  // Build texture atlas
-		// for now let's just use bsf default font.
-	  // Build texture atlas
-	  ImGuiIO& io = ImGui::GetIO();
-	  unsigned char* pixels;
-	  int width, height;
-	  // io.Fonts->AddFontDefault();
-	  io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);   // Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small) because it is more likely to be compatible with user's existing shaders. If your ImTextureId represent a higher-level concept than just a GL texture id, consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
+#include "Renderer/BsRendererExtension.h"
+#include "./imgui_impl_bsf.h"
 
 
-	  if (false) {
-	  	// debug bmp output of the generated texture.
-		  UINT32 bytesPerPixel = 4;
-			UINT32 bmpDataSize = BitmapWriter::getBMPSize(width, height, bytesPerPixel);
-			UINT8* bmpBuffer = bs_newN<UINT8>(bmpDataSize);
-			for (int i = 0; i < width * height; ++i) {
-				// convert alph to black for debugging.
-				// since otherwise it won't be as easy to see the alpha.
-				pixels[i*4] = pixels[i*4 + 3];
-				pixels[i*4 + 1] = pixels[i*4 + 3];
-				pixels[i*4 + 2] = pixels[i*4 + 3];
-			}
-			BitmapWriter::rawPixelsToBMP(pixels, bmpBuffer, width, height, bytesPerPixel);
-			SPtr<DataStream> ds = FileSystem::createAndOpenFile("test.bmp");
-			ds->write(bmpBuffer, bmpDataSize);
-			ds->close();	  	
-	  }
 
-		TEXTURE_DESC textureDesc;
-		textureDesc.format = PF_RGBA8;
-		textureDesc.width = width;
-		textureDesc.height = height;
-		HTexture texture = Texture::create(textureDesc);
-		SPtr<PixelData> pixelData = PixelData::create(width, height, 1, PF_RGBA8);
-		Vector<Color> colors;
-		for (int i = 0; i < width * height; ++i) {
-			colors.push_back(Color(1,1,1, pixels[i*4 + 3] / 255.f));
-		}
-		pixelData->setColors(colors);
-		texture->writeData(pixelData);
+static bs::SPtr<bs::RendererExtension> renderExt;
 
-	  return texture;
-	}
+static bs::HMaterial gMaterial;
 
-	static HMaterial gMaterial;
+namespace bs {
 
-	void ImGui_ImplBsf_SetupPipeline() {
+void makeInterfaceFrame2() {
+  ImGui_ImplBsf_NewFrame();
+  ImGui::NewFrame();
 
-		// HShader shader = BuiltinResources::instance().getShader("Imgui.bsl");
-		Path imguiPath = BuiltinResources::instance().getRawShaderFolder().append("Imgui.bsl");
-		HShader shader = gImporter().import<Shader>(imguiPath);
-		gMaterial = Material::create(shader);
-		HTexture texture = ImGui_ImplBsf_CreateFontsTexture();
-		gMaterial->setTexture("gMainTexture", texture);
-	}
+  {
+  	bool show_demo_window = true;
+    bool show_another_window = false;
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+      static float f = 0.0f;
+      static int counter = 0;
 
+      ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+      ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+      ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+      ImGui::Checkbox("Another Window", &show_another_window);
+
+      ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+      ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+      if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+          counter++;
+      ImGui::SameLine();
+      ImGui::Text("counter = %d", counter);
+
+      ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+      ImGui::End();
+  }
+
+  ImGui::Render();
+	// bs::ct::ImGui_ImplBsf_RenderDrawData(ImGui::GetDrawData());	
 }
+}
+
 
 namespace bs::ct {
 
-	static void ImGui_ImplBsf_SetupRenderState(ImDrawData* draw_data, int width, int height)
+void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data);
+class ImguiRendererExtension : public RendererExtension
+{
+public:
+	ImguiRendererExtension() : 
+		RendererExtension(RenderLocation::Overlay, 10)
+	{}
+	// ... other extension code
+
+	bool check(const ct::Camera& camera) override {
+		return true;
+	}
+	
+	void render(const ct::Camera& camera) override {
+		// std::cout << "RENDERER EXTENSION " << std::endl;
+		makeInterfaceFrame2();
+		ImGui_ImplBsf_RenderDrawData(ImGui::GetDrawData());
+	}
+
+};
+
+	void ImGui_ImplBsf_SetupRenderState(ImDrawData* draw_data, int width, int height)
 	{
-    auto& renderAPI = RenderAPI::instance();
-		SPtr<RenderWindow> renderWindow = gCoreApplication().getPrimaryWindow()->getCore();
-		renderAPI.setRenderTarget(renderWindow);
+  //   auto& renderAPI = RenderAPI::instance();
+		// SPtr<RenderWindow> renderWindow = gCoreApplication().getPrimaryWindow()->getCore();
+		// renderAPI.setRenderTarget(renderWindow);
 
 		UINT32 passIdx = 0;
 		UINT32 techniqueIdx = gMaterial->getDefaultTechnique();
@@ -175,8 +179,17 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
 
                     // // Apply scissor/clipping rectangle
                 	renderAPI.setScissorRect((int)clip_rect.x, (int)(fb_height - clip_rect.w), (int)(clip_rect.z - clip_rect.x), (int)(clip_rect.w - clip_rect.y));
-									renderAPI.drawIndexed(0, indexDesc.numIndices, 0, desc.numVerts);
-									std::cout << "DRAW? indices: " << indexDesc.numIndices << " verts: " << desc.numVerts << std::endl;
+									assert(pcmd->ElemCount % 3 == 0); // should always be triangle indices.
+									assert(pcmd->VtxOffset == 0); // should always be zero
+									assert(pcmd->IdxOffset < indexDesc.numIndices);
+									renderAPI.drawIndexed(
+										pcmd->IdxOffset, 
+										pcmd->ElemCount, 
+										pcmd->VtxOffset, 
+										desc.numVerts);
+									std::cout << "DRAW? indices: " << pcmd->ElemCount 
+										<< " texture: " << pcmd->TextureId
+										<< " verts: " << desc.numVerts << std::endl;
                 }
             }
         }
@@ -184,3 +197,69 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
 }
 
 } // namespace bs::ct
+
+
+namespace bs {	
+
+
+	HTexture ImGui_ImplBsf_CreateFontsTexture()
+	{
+	  // Build texture atlas
+		// for now let's just use bsf default font.
+	  // Build texture atlas
+	  ImGuiIO& io = ImGui::GetIO();
+	  unsigned char* pixels;
+	  int width, height;
+	  // io.Fonts->AddFontDefault();
+	  io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);   // Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small) because it is more likely to be compatible with user's existing shaders. If your ImTextureId represent a higher-level concept than just a GL texture id, consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
+
+
+	  if (false) {
+	  	// debug bmp output of the generated texture.
+		  UINT32 bytesPerPixel = 4;
+			UINT32 bmpDataSize = BitmapWriter::getBMPSize(width, height, bytesPerPixel);
+			UINT8* bmpBuffer = bs_newN<UINT8>(bmpDataSize);
+			for (int i = 0; i < width * height; ++i) {
+				// convert alph to black for debugging.
+				// since otherwise it won't be as easy to see the alpha.
+				pixels[i*4] = pixels[i*4 + 3];
+				pixels[i*4 + 1] = pixels[i*4 + 3];
+				pixels[i*4 + 2] = pixels[i*4 + 3];
+			}
+			BitmapWriter::rawPixelsToBMP(pixels, bmpBuffer, width, height, bytesPerPixel);
+			SPtr<DataStream> ds = FileSystem::createAndOpenFile("test.bmp");
+			ds->write(bmpBuffer, bmpDataSize);
+			ds->close();	  	
+	  }
+
+		TEXTURE_DESC textureDesc;
+		textureDesc.format = PF_RGBA8;
+		textureDesc.width = width;
+		textureDesc.height = height;
+		HTexture texture = Texture::create(textureDesc);
+		SPtr<PixelData> pixelData = PixelData::create(width, height, 1, PF_RGBA8);
+		Vector<Color> colors;
+		for (int i = 0; i < width * height; ++i) {
+			colors.push_back(Color(1,1,1, pixels[i*4 + 3] / 255.f));
+		}
+		pixelData->setColors(colors);
+		texture->writeData(pixelData);
+
+	  return texture;
+	}
+
+
+	void ImGui_ImplBsf_SetupPipeline() {
+
+		// HShader shader = BuiltinResources::instance().getShader("Imgui.bsl");
+		Path imguiPath = BuiltinResources::instance().getRawShaderFolder().append("Imgui.bsl");
+		HShader shader = gImporter().import<Shader>(imguiPath);
+		gMaterial = Material::create(shader);
+		HTexture texture = ImGui_ImplBsf_CreateFontsTexture();
+		gMaterial->setTexture("gMainTexture", texture);
+
+		// no initial data necessary... so just pass in 0.
+		renderExt = RendererExtension::create<ct::ImguiRendererExtension>(nullptr);
+	}
+
+}
