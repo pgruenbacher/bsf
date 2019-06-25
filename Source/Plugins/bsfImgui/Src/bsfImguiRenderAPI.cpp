@@ -22,11 +22,13 @@
 
 
 
-static bs::SPtr<bs::RendererExtension> renderExt;
-
-static bs::HMaterial gMaterial;
 
 namespace bs {
+
+static SPtr<RendererExtension> renderExt;
+static SPtr<VertexDeclaration> gVertexDecl;
+static SPtr<GpuParamsSetType> gParamSet;
+static HMaterial gMaterial;
 
 void makeInterfaceFrame2() {
   ImGui_ImplBsf_NewFrame();
@@ -94,9 +96,11 @@ public:
 
 		UINT32 passIdx = 0;
 		UINT32 techniqueIdx = gMaterial->getDefaultTechnique();
+		gMaterial->update(gParamSet);
 		gRendererUtility().setPass(gMaterial->getCore(), passIdx, techniqueIdx);
-		auto params = gMaterial->getCore()->createParamsSet(techniqueIdx);
-		gRendererUtility().setPassParams(params, passIdx);
+		gRendererUtility().setPassParams(mParams);
+		// auto params = gMaterial->getCore()->createParamsSet(techniqueIdx);
+		// gRendererUtility().setPassParams(params, passIdx);
 
 
 		// opengl2 notes...
@@ -118,6 +122,7 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
     int fb_height = (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
     if (fb_width == 0 || fb_height == 0)
         return;
+
 
     ImGui_ImplBsf_SetupRenderState(draw_data, fb_width, fb_height);
 
@@ -151,7 +156,9 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
         ibuf->writeData(0, indexDesc.numIndices, cmd_list->IdxBuffer.Data);
 
 				renderAPI.setIndexBuffer(ibuf);
-				renderAPI.setVertexBuffers(0, &vbuf, 1);
+				UINT32 numBuffers = 1;
+				renderAPI.setVertexBuffers(0, &vbuf, numBuffers);
+				renderAPI.setVertexDeclaration(gVertexDecl->getCore());
 				renderAPI.setDrawOperation(DOT_TRIANGLE_LIST);
 
         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
@@ -176,7 +183,7 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
 
                 if (clip_rect.x < fb_width && clip_rect.y < fb_height && clip_rect.z >= 0.0f && clip_rect.w >= 0.0f)
                 {
-
+                	std::cout << "clip? " << clip_rect.x << " " << clip_rect.y << " " << fb_width << " " << fb_height << std::endl;
                     // // Apply scissor/clipping rectangle
                 	renderAPI.setScissorRect((int)clip_rect.x, (int)(fb_height - clip_rect.w), (int)(clip_rect.z - clip_rect.x), (int)(clip_rect.w - clip_rect.y));
 									assert(pcmd->ElemCount % 3 == 0); // should always be triangle indices.
@@ -257,9 +264,17 @@ namespace bs {
 		gMaterial = Material::create(shader);
 		HTexture texture = ImGui_ImplBsf_CreateFontsTexture();
 		gMaterial->setTexture("gMainTexture", texture);
-
+		UINT32 mTechnique = 0;
+		gParamSet = gMaterial->createParamsSet(mTechnique)
 		// no initial data necessary... so just pass in 0.
 		renderExt = RendererExtension::create<ct::ImguiRendererExtension>(nullptr);
+
+
+			auto vertexDeclDesc = bs_shared_ptr_new<VertexDataDesc>();
+			vertexDeclDesc->addVertElem(VET_FLOAT2, VES_POSITION);
+			vertexDeclDesc->addVertElem(VET_FLOAT2, VES_TEXCOORD);
+			vertexDeclDesc->addVertElem(VET_COLOR, VES_COLOR);
+			gVertexDecl = VertexDeclaration::create(vertexDeclDesc);
 	}
 
 }
