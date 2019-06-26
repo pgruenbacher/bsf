@@ -12,6 +12,7 @@
 #include "RenderAPI/BsIndexBuffer.h"
 #include "RenderAPI/BsVertexBuffer.h"
 #include "Importer/BsImporter.h"
+#include "Material/BsGpuParamsSet.h"
 #include "Material/BsShader.h"
 #include "Resources/BsBuiltinResources.h"
 #include "FileSystem/BsFileSystem.h"
@@ -27,7 +28,7 @@ namespace bs {
 
 static SPtr<RendererExtension> renderExt;
 static SPtr<VertexDeclaration> gVertexDecl;
-static SPtr<GpuParamsSetType> gParamSet;
+// static SPtr<GpuParamsSetType> gParamSet;
 static HMaterial gMaterial;
 
 void makeInterfaceFrame2() {
@@ -96,9 +97,11 @@ public:
 
 		UINT32 passIdx = 0;
 		UINT32 techniqueIdx = gMaterial->getDefaultTechnique();
-		gMaterial->update(gParamSet);
+
+		SPtr<GpuParamsSet> paramSet = gMaterial->getCore()->createParamsSet(techniqueIdx);
+		gMaterial->getCore()->updateParamsSet(paramSet);
 		gRendererUtility().setPass(gMaterial->getCore(), passIdx, techniqueIdx);
-		gRendererUtility().setPassParams(mParams);
+		gRendererUtility().setPassParams(paramSet);
 		// auto params = gMaterial->getCore()->createParamsSet(techniqueIdx);
 		// gRendererUtility().setPassParams(params, passIdx);
 
@@ -264,8 +267,6 @@ namespace bs {
 		gMaterial = Material::create(shader);
 		HTexture texture = ImGui_ImplBsf_CreateFontsTexture();
 		gMaterial->setTexture("gMainTexture", texture);
-		UINT32 mTechnique = 0;
-		gParamSet = gMaterial->createParamsSet(mTechnique)
 		// no initial data necessary... so just pass in 0.
 		renderExt = RendererExtension::create<ct::ImguiRendererExtension>(nullptr);
 
