@@ -640,7 +640,7 @@ namespace bs
 
 	void Resources::save(const HResource& resource, const Path& filePath, bool overwrite, bool compress)
 	{
-		std::cout << "SAVE??" << std::endl;
+		std::cout << "SAVE? " << filePath.toString() << std::endl;
 		if (resource == nullptr)
 			return;
 
@@ -687,7 +687,6 @@ namespace bs
 
 	void Resources::_save(const SPtr<Resource>& resource, const Path& filePath, bool compress)
 	{
-		std::cout << "SAVE?" << std::endl;
 		if (!resource->mKeepSourceData)
 		{
 			BS_LOG(Warning, Resources, "Saving a resource that was created/loaded without KeepSourceData flag." 

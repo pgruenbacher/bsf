@@ -231,7 +231,7 @@ namespace bs { namespace ct
 
 		if(errorMsg)
 		{
-			LOGERR("GpuSort failed: " + String(errorMsg));
+			BS_LOG(Error, Renderer, "GpuSort failed: {0}", errorMsg);
 			return 0;
 		}
 
@@ -246,7 +246,7 @@ namespace bs { namespace ct
 
 		if (!validSize)
 		{
-			LOGERR("GpuSort failed: All sort buffers must have the same size.");
+			BS_LOG(Error, Renderer, "GpuSort failed: All sort buffers must have the same size.");
 			return 0;
 		}
 

@@ -51,7 +51,7 @@ public:
     auto mTestDirectory = getTestDirectory();
     FileSystem::remove(mTestDirectory, true);
     if (FileSystem::exists(mTestDirectory)) {
-      LOGERR("FileSystemTestSuite failed to delete '" +
+      BS_LOG(Error, FileSystem, "FileSystemTestSuite failed to delete '" +
              mTestDirectory.toString() + "', you should remove it manually.");
     }
 
