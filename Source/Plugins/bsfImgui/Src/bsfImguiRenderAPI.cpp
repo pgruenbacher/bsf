@@ -5,6 +5,7 @@
 #include "Renderer/BsParamBlocks.h"
 #include "Debug/BsBitmapWriter.h"
 // #include "Mesh/BsMesh.h"
+#include "Renderer/BsCamera.h"
 #include "RenderAPI/BsVertexDataDesc.h"
 #include "Mesh/BsMeshHeap.h"
 // #include "Mesh/BsTransientMesh.h"
@@ -68,7 +69,16 @@ void makeInterfaceFrame2() {
 
 namespace bs::ct {
 
-void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data);
+
+BS_PARAM_BLOCK_BEGIN(ImguiParamBlockDef)
+	BS_PARAM_BLOCK_ENTRY(float, gInvViewportWidth)
+	BS_PARAM_BLOCK_ENTRY(float, gInvViewportHeight)
+	BS_PARAM_BLOCK_ENTRY(float, gViewportYFlip)
+BS_PARAM_BLOCK_END
+
+ImguiParamBlockDef gImguiParamBlockDef;
+
+void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camera);
 class ImguiRendererExtension : public RendererExtension
 {
 public:
@@ -84,28 +94,55 @@ public:
 	void render(const ct::Camera& camera) override {
 		// std::cout << "RENDERER EXTENSION " << std::endl;
 		makeInterfaceFrame2();
-		ImGui_ImplBsf_RenderDrawData(ImGui::GetDrawData());
+		ImGui_ImplBsf_RenderDrawData(ImGui::GetDrawData(), camera);
 	}
 
 };
 
-	void ImGui_ImplBsf_SetupRenderState(ImDrawData* draw_data, int width, int height)
+	void ImGui_ImplBsf_SetupRenderState(const ct::Camera& camera, ImDrawData* draw_data, int width, int height)
 	{
   //   auto& renderAPI = RenderAPI::instance();
 		// SPtr<RenderWindow> renderWindow = gCoreApplication().getPrimaryWindow()->getCore();
 		// renderAPI.setRenderTarget(renderWindow);
 
+		float invViewportWidth = 1.0f / (camera.getViewport()->getPixelArea().width * 0.5f);
+		float invViewportHeight = 1.0f / (camera.getViewport()->getPixelArea().height * 0.5f);
+		float viewflipYFlip = (gCaps().conventions.ndcYAxis == Conventions::Axis::Down) ? -1.0f : 1.0f;
+
+		// gMaterial->getCore()->setFloat("gInvViewportWidth", invViewportWidth);
+		// gMaterial->getCore()->setFloat("gInvViewportHeight", invViewportHeight);
+		// gMaterial->getCore()->setFloat("gViewportYFlip", viewflipYFlip);
+
+		auto buffer = gImguiParamBlockDef.createBuffer();
+		gImguiParamBlockDef.gInvViewportWidth.set(buffer, invViewportWidth);
+		gImguiParamBlockDef.gInvViewportHeight.set(buffer, invViewportHeight);
+		gImguiParamBlockDef.gViewportYFlip.set(buffer, viewflipYFlip);
+		buffer->flushToGPU();
+
+
 		UINT32 passIdx = 0;
 		UINT32 techniqueIdx = gMaterial->getDefaultTechnique();
 
 		SPtr<GpuParamsSet> paramSet = gMaterial->getCore()->createParamsSet(techniqueIdx);
-		gMaterial->getCore()->updateParamsSet(paramSet);
+		auto mParamBufferIdx = paramSet->getParamBlockBufferIndex("GUIParams");
+		assert( paramSet->getParamBlockBufferIndex("NoParamsTest") == (UINT32)-1);
+		assert(mParamBufferIdx != (UINT32)-1);
+		paramSet->setParamBlockBuffer(mParamBufferIdx, buffer, true);
+		// gMaterial->getCore()->updateParamsSet(paramSet);
 		gRendererUtility().setPass(gMaterial->getCore(), passIdx, techniqueIdx);
 		gRendererUtility().setPassParams(paramSet);
+
+
 		// auto params = gMaterial->getCore()->createParamsSet(techniqueIdx);
 		// gRendererUtility().setPassParams(params, passIdx);
 
+		// std::cout << gMaterial->getCore()->getFloat("gInvViewportWidth") << std::endl;
+		// std::cout << gMaterial->getCore()->getFloat("gInvViewportHeight") << std::endl;
+		// std::cout << gMaterial->getCore()->getFloat("gViewportYFlip") << std::endl;
 
+		// gGUISpriteParamBlockDef.gInvViewportWidth.set(buffer, invViewportWidth);
+		// gGUISpriteParamBlockDef.gInvViewportHeight.set(buffer, invViewportHeight);
+		// gGUISpriteParamBlockDef.gViewportYFlip.set(buffer, viewflipYFlip);
 		// opengl2 notes...
     // // Setup viewport, orthographic projection matrix
     // // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayPos is (0,0) for single viewport apps.
@@ -119,7 +156,7 @@ public:
     // glLoadIdentity();
 	}
 
-void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
+void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camera) {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     int fb_width = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
     int fb_height = (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
@@ -127,7 +164,7 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
         return;
 
 
-    ImGui_ImplBsf_SetupRenderState(draw_data, fb_width, fb_height);
+    ImGui_ImplBsf_SetupRenderState(camera, draw_data, fb_width, fb_height);
 
     auto& renderAPI = RenderAPI::instance();
 
@@ -158,10 +195,11 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
         SPtr<IndexBuffer> ibuf = IndexBuffer::create(indexDesc);
         ibuf->writeData(0, indexDesc.numIndices, cmd_list->IdxBuffer.Data);
 
-				renderAPI.setIndexBuffer(ibuf);
+
 				UINT32 numBuffers = 1;
-				renderAPI.setVertexBuffers(0, &vbuf, numBuffers);
 				renderAPI.setVertexDeclaration(gVertexDecl->getCore());
+				renderAPI.setVertexBuffers(0, &vbuf, numBuffers);
+				renderAPI.setIndexBuffer(ibuf);
 				renderAPI.setDrawOperation(DOT_TRIANGLE_LIST);
 
         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
@@ -172,7 +210,7 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
                 // User callback, registered via ImDrawList::AddCallback()
                 // (ImDrawCallback_ResetRenderState is a special callback value used by the user to request the renderer to reset render state.)
                 if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
-                    ImGui_ImplBsf_SetupRenderState(draw_data, fb_width, fb_height);
+                    ImGui_ImplBsf_SetupRenderState(camera, draw_data, fb_width, fb_height);
                 else
                     pcmd->UserCallback(cmd_list, pcmd);
             } else {
@@ -188,7 +226,12 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
                 {
                 	std::cout << "clip? " << clip_rect.x << " " << clip_rect.y << " " << fb_width << " " << fb_height << std::endl;
                     // // Apply scissor/clipping rectangle
-                	renderAPI.setScissorRect((int)clip_rect.x, (int)(fb_height - clip_rect.w), (int)(clip_rect.z - clip_rect.x), (int)(clip_rect.w - clip_rect.y));
+                	renderAPI.setScissorRect(
+                		(clip_rect.x), 
+                		(fb_height - clip_rect.w), 
+                		(clip_rect.z - clip_rect.x), 
+                		(clip_rect.w - clip_rect.y)
+                	);
 									assert(pcmd->ElemCount % 3 == 0); // should always be triangle indices.
 									assert(pcmd->VtxOffset == 0); // should always be zero
 									assert(pcmd->IdxOffset < indexDesc.numIndices);
@@ -197,8 +240,19 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data) {
 										pcmd->ElemCount, 
 										pcmd->VtxOffset, 
 										desc.numVerts);
-									std::cout << "DRAW? indices: " << pcmd->ElemCount 
+
+									// if (cmd_i == 1) {
+						   //      for (uint i = pcmd->IdxOffset; i < pcmd->IdxOffset + pcmd->ElemCount; ++i) {
+						   //      	std::cout << "i ? " << std::to_string((cmd_list->IdxBuffer.Data)[i]) << std::endl;
+						   //      	auto vert = (cmd_list->VtxBuffer.Data[(cmd_list->IdxBuffer.Data)[i]]);
+						   //      	std::cout << "v ? " << std::to_string(vert.pos.x) << " " << std::to_string(vert.pos.y)  << std::endl;
+						   //      }										
+									// }
+
+									std::cout << "CMD " << cmd_i << " DRAW? indices: " << pcmd->ElemCount 
 										<< " texture: " << pcmd->TextureId
+										<< " vtx offset " << pcmd->VtxOffset 
+										<< " idx offset " << pcmd->IdxOffset
 										<< " verts: " << desc.numVerts << std::endl;
                 }
             }
@@ -267,7 +321,7 @@ namespace bs {
 		gMaterial = Material::create(shader);
 		HTexture texture = ImGui_ImplBsf_CreateFontsTexture();
 		gMaterial->setTexture("gMainTexture", texture);
-		// no initial data necessary... so just pass in 0.
+		// no initial data necessary... so just pass in nullptr.
 		renderExt = RendererExtension::create<ct::ImguiRendererExtension>(nullptr);
 
 
