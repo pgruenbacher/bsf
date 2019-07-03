@@ -1,5 +1,10 @@
 shader ImguiBasic
 {
+	raster 
+	{
+		scissor = true;
+	};
+
 	blend
 	{
 		target	
@@ -18,6 +23,7 @@ shader ImguiBasic
 	
 	code
 	{
+		[internal]
 		cbuffer GUIParams
 		{
 			float gInvViewportWidth;
@@ -36,10 +42,10 @@ shader ImguiBasic
 		{
 			// // float4 tfrmdPos = mul(gWorldTransform, float4(inPos.xy, 0, 1));
 			float4 tfrmdPos = float4(inPos.xy, 0, 1);
-			// float tfrmdX = -1.0f + (tfrmdPos.x * gInvViewportWidth);
-			// float tfrmdY = (1.0f - (tfrmdPos.y * gInvViewportHeight)) * gViewportYFlip;
-			float tfrmdX = -1.0f + (tfrmdPos.x * 0.0015625);
-			float tfrmdY = (1.0f - (tfrmdPos.y * 0.00277778)) * 1.0;
+			float tfrmdX = -1.0f + (tfrmdPos.x * gInvViewportWidth);
+			float tfrmdY = (1.0f - (tfrmdPos.y * gInvViewportHeight)) * gViewportYFlip;
+			// float tfrmdX = -1.0f + (tfrmdPos.x * 0.0015625);
+			// float tfrmdY = (1.0f - (tfrmdPos.y * 0.00277778)) * 1.0;
 
 			oPosition = float4(tfrmdX, tfrmdY, 0, 1);
 			// oPosition = float4(inPos.xy, 0, 1);

@@ -12,6 +12,7 @@ IMGUI_IMPL_API void     ImGui_ImplBsf_Shutdown();
 IMGUI_IMPL_API void     ImGui_ImplBsf_NewFrame();
 
 void ImGui_ImplBsf_SetupPipeline();
+void ImGui_ImplBsf_ShutdownPipeline();
 }
 
 // namespace bs::ct {

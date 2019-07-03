@@ -24,31 +24,35 @@
 
 
 
-
 namespace bs {
 
 static SPtr<RendererExtension> renderExt;
 static SPtr<VertexDeclaration> gVertexDecl;
-// static SPtr<GpuParamsSetType> gParamSet;
 static HMaterial gMaterial;
 
 void makeInterfaceFrame2() {
   ImGui_ImplBsf_NewFrame();
   ImGui::NewFrame();
 
+
+	static bool show_demo_window = true;
+	static bool show_another_window = false;
+	static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
   {
-  	bool show_demo_window = true;
-    bool show_another_window = false;
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-      static float f = 0.0f;
-      static int counter = 0;
+  	if (show_demo_window) {
+  		ImGui::ShowDemoWindow(&show_demo_window);
+  	}
+
+    {
+			static float f = 0.0f;
+			static int counter = 0;
 
       ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
 
       ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
       ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
       ImGui::Checkbox("Another Window", &show_another_window);
-
       ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
       ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
@@ -58,8 +62,19 @@ void makeInterfaceFrame2() {
       ImGui::Text("counter = %d", counter);
 
       ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-      ImGui::End();
+      ImGui::End();    	
+    }
+
+	  if (show_another_window)
+	  {
+	      ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+	      ImGui::Text("Hello from another window!");
+	      if (ImGui::Button("Close Me"))
+	          show_another_window = false;
+	      ImGui::End();
+	  }
   }
+
 
   ImGui::Render();
 	// bs::ct::ImGui_ImplBsf_RenderDrawData(ImGui::GetDrawData());	
@@ -81,10 +96,12 @@ ImguiParamBlockDef gImguiParamBlockDef;
 void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camera);
 class ImguiRendererExtension : public RendererExtension
 {
+SPtr<GpuParamBlockBuffer> gBuffer;
 public:
 	ImguiRendererExtension() : 
 		RendererExtension(RenderLocation::Overlay, 10)
-	{}
+	{
+	}
 	// ... other extension code
 
 	bool check(const ct::Camera& camera) override {
@@ -97,9 +114,13 @@ public:
 		ImGui_ImplBsf_RenderDrawData(ImGui::GetDrawData(), camera);
 	}
 
+	void ImGui_ImplBsf_SetupRenderState(const ct::Camera& camera, ImDrawData* draw_data, int width, int height);
+	void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camera);
+
+
 };
 
-	void ImGui_ImplBsf_SetupRenderState(const ct::Camera& camera, ImDrawData* draw_data, int width, int height)
+	void ImguiRendererExtension::ImGui_ImplBsf_SetupRenderState(const ct::Camera& camera, ImDrawData* draw_data, int width, int height)
 	{
   //   auto& renderAPI = RenderAPI::instance();
 		// SPtr<RenderWindow> renderWindow = gCoreApplication().getPrimaryWindow()->getCore();
@@ -109,15 +130,13 @@ public:
 		float invViewportHeight = 1.0f / (camera.getViewport()->getPixelArea().height * 0.5f);
 		float viewflipYFlip = (gCaps().conventions.ndcYAxis == Conventions::Axis::Down) ? -1.0f : 1.0f;
 
-		// gMaterial->getCore()->setFloat("gInvViewportWidth", invViewportWidth);
-		// gMaterial->getCore()->setFloat("gInvViewportHeight", invViewportHeight);
-		// gMaterial->getCore()->setFloat("gViewportYFlip", viewflipYFlip);
-
-		auto buffer = gImguiParamBlockDef.createBuffer();
-		gImguiParamBlockDef.gInvViewportWidth.set(buffer, invViewportWidth);
-		gImguiParamBlockDef.gInvViewportHeight.set(buffer, invViewportHeight);
-		gImguiParamBlockDef.gViewportYFlip.set(buffer, viewflipYFlip);
-		buffer->flushToGPU();
+		if (!gBuffer) {			
+			gBuffer = gImguiParamBlockDef.createBuffer();
+		}
+		gImguiParamBlockDef.gInvViewportWidth.set(gBuffer, invViewportWidth);
+		gImguiParamBlockDef.gInvViewportHeight.set(gBuffer, invViewportHeight);
+		gImguiParamBlockDef.gViewportYFlip.set(gBuffer, viewflipYFlip);
+		gBuffer->flushToGPU();
 
 
 		UINT32 passIdx = 0;
@@ -125,44 +144,22 @@ public:
 
 		SPtr<GpuParamsSet> paramSet = gMaterial->getCore()->createParamsSet(techniqueIdx);
 		auto mParamBufferIdx = paramSet->getParamBlockBufferIndex("GUIParams");
+		// confirm that invalid param buffer indices are (UINT32-1)
 		assert( paramSet->getParamBlockBufferIndex("NoParamsTest") == (UINT32)-1);
+		// confirm that buffer index is valid
 		assert(mParamBufferIdx != (UINT32)-1);
-		paramSet->setParamBlockBuffer(mParamBufferIdx, buffer, true);
-		// gMaterial->getCore()->updateParamsSet(paramSet);
+		gMaterial->getCore()->updateParamsSet(paramSet);
+		paramSet->setParamBlockBuffer(mParamBufferIdx, gBuffer, false);
 		gRendererUtility().setPass(gMaterial->getCore(), passIdx, techniqueIdx);
 		gRendererUtility().setPassParams(paramSet);
-
-
-		// auto params = gMaterial->getCore()->createParamsSet(techniqueIdx);
-		// gRendererUtility().setPassParams(params, passIdx);
-
-		// std::cout << gMaterial->getCore()->getFloat("gInvViewportWidth") << std::endl;
-		// std::cout << gMaterial->getCore()->getFloat("gInvViewportHeight") << std::endl;
-		// std::cout << gMaterial->getCore()->getFloat("gViewportYFlip") << std::endl;
-
-		// gGUISpriteParamBlockDef.gInvViewportWidth.set(buffer, invViewportWidth);
-		// gGUISpriteParamBlockDef.gInvViewportHeight.set(buffer, invViewportHeight);
-		// gGUISpriteParamBlockDef.gViewportYFlip.set(buffer, viewflipYFlip);
-		// opengl2 notes...
-    // // Setup viewport, orthographic projection matrix
-    // // Our visible imgui space lies from draw_data->DisplayPos (top left) to draw_data->DisplayPos+data_data->DisplaySize (bottom right). DisplayPos is (0,0) for single viewport apps.
-    // glViewport(0, 0, (GLsizei)fb_width, (GLsizei)fb_height);
-    // glMatrixMode(GL_PROJECTION);
-    // glPushMatrix();
-    // glLoadIdentity();
-    // glOrtho(draw_data->DisplayPos.x, draw_data->DisplayPos.x + draw_data->DisplaySize.x, draw_data->DisplayPos.y + draw_data->DisplaySize.y, draw_data->DisplayPos.y, -1.0f, +1.0f);
-    // glMatrixMode(GL_MODELVIEW);
-    // glPushMatrix();
-    // glLoadIdentity();
 	}
 
-void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camera) {
+void ImguiRendererExtension::ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camera) {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     int fb_width = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
     int fb_height = (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
     if (fb_width == 0 || fb_height == 0)
         return;
-
 
     ImGui_ImplBsf_SetupRenderState(camera, draw_data, fb_width, fb_height);
 
@@ -171,8 +168,7 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camer
     // Will project scissor/clipping rectangles into framebuffer space
     ImVec2 clip_off = draw_data->DisplayPos;         // (0,0) unless using multi-viewports
     ImVec2 clip_scale = draw_data->FramebufferScale; // (1,1) unless using retina display which are often (2,2)
-
-    std::cout << "CMD LISTS COUTN " << draw_data->CmdListsCount << std::endl;
+    // std::cout << "START" << std::endl;
     for (int n = 0; n < draw_data->CmdListsCount; n++)
     {
         const ImDrawList* cmd_list = draw_data->CmdLists[n];
@@ -184,7 +180,7 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camer
 				desc.numVerts = cmd_list->VtxBuffer.Size; 
 				desc.usage = GBU_STATIC;
         SPtr<VertexBuffer> vbuf = VertexBuffer::create(desc);
-        vbuf->writeData(0, desc.numVerts, cmd_list->VtxBuffer.Data);
+        vbuf->writeData(0, sizeof(ImDrawVert) * desc.numVerts, cmd_list->VtxBuffer.Data);
 
         // assert that imgui index type is 16 bit or 2 bytes.
         static_assert(sizeof(ImDrawIdx) == 2);
@@ -193,12 +189,12 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camer
 				indexDesc.numIndices = cmd_list->IdxBuffer.Size; 
 				indexDesc.usage = GBU_STATIC;
         SPtr<IndexBuffer> ibuf = IndexBuffer::create(indexDesc);
-        ibuf->writeData(0, indexDesc.numIndices, cmd_list->IdxBuffer.Data);
+        ibuf->writeData(0, sizeof(ImDrawIdx) * indexDesc.numIndices, cmd_list->IdxBuffer.Data);
 
 
 				UINT32 numBuffers = 1;
-				renderAPI.setVertexDeclaration(gVertexDecl->getCore());
 				renderAPI.setVertexBuffers(0, &vbuf, numBuffers);
+				renderAPI.setVertexDeclaration(gVertexDecl->getCore());
 				renderAPI.setIndexBuffer(ibuf);
 				renderAPI.setDrawOperation(DOT_TRIANGLE_LIST);
 
@@ -224,36 +220,44 @@ void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camer
 
                 if (clip_rect.x < fb_width && clip_rect.y < fb_height && clip_rect.z >= 0.0f && clip_rect.w >= 0.0f)
                 {
-                	std::cout << "clip? " << clip_rect.x << " " << clip_rect.y << " " << fb_width << " " << fb_height << std::endl;
+                	// std::cout << "clip? " << clip_rect.x << " " << clip_rect.y << " " << fb_width << " " << fb_height << std::endl;
+                	// std::cout << "w z " << clip_rect.w << " " << clip_rect.z << std::endl;
                     // // Apply scissor/clipping rectangle
-                	renderAPI.setScissorRect(
-                		(clip_rect.x), 
-                		(fb_height - clip_rect.w), 
-                		(clip_rect.z - clip_rect.x), 
-                		(clip_rect.w - clip_rect.y)
-                	);
+                	assert((clip_rect.z - clip_rect.x) >= 0);
+                	assert(((fb_height - clip_rect.w)) >= 0);
+                	assert(((clip_rect.w - clip_rect.y)) >= 0);
+
+                	// ImVec2 pos = draw_data->DisplayPos;
+                	// std::cout << "SCISSOR ? "                 		
+                 // 		<< (int)(clip_rect.x) << " " 
+                 // 		<< (int)(clip_rect.y) << " " 
+                 // 		<< (int)(clip_rect.z) << " " 
+                 // 		<< (int)(clip_rect.w) << " "
+                 // 	<< std::endl;
+
+                 	renderAPI.setScissorRect(
+                 		(int)(clip_rect.x), 
+                 		(int)(clip_rect.y), 
+                 		(int)(clip_rect.z), 
+                 		(int)(clip_rect.w)
+                 	);
+
+									// UINT32 passIdx = 0;
+									// UINT32 techniqueIdx = gMaterial->getDefaultTechnique();
+									// // have to set pass for every scissor which is kinda annoying
+									// // due to scissors  in the gl render api.
+									// gRendererUtility().setPass(gMaterial->getCore(), passIdx, techniqueIdx);
+
 									assert(pcmd->ElemCount % 3 == 0); // should always be triangle indices.
 									assert(pcmd->VtxOffset == 0); // should always be zero
 									assert(pcmd->IdxOffset < indexDesc.numIndices);
+									UINT32 instanceCount = 1;
 									renderAPI.drawIndexed(
 										pcmd->IdxOffset, 
 										pcmd->ElemCount, 
 										pcmd->VtxOffset, 
-										desc.numVerts);
-
-									// if (cmd_i == 1) {
-						   //      for (uint i = pcmd->IdxOffset; i < pcmd->IdxOffset + pcmd->ElemCount; ++i) {
-						   //      	std::cout << "i ? " << std::to_string((cmd_list->IdxBuffer.Data)[i]) << std::endl;
-						   //      	auto vert = (cmd_list->VtxBuffer.Data[(cmd_list->IdxBuffer.Data)[i]]);
-						   //      	std::cout << "v ? " << std::to_string(vert.pos.x) << " " << std::to_string(vert.pos.y)  << std::endl;
-						   //      }										
-									// }
-
-									std::cout << "CMD " << cmd_i << " DRAW? indices: " << pcmd->ElemCount 
-										<< " texture: " << pcmd->TextureId
-										<< " vtx offset " << pcmd->VtxOffset 
-										<< " idx offset " << pcmd->IdxOffset
-										<< " verts: " << desc.numVerts << std::endl;
+										desc.numVerts,
+										instanceCount);
                 }
             }
         }
@@ -312,6 +316,14 @@ namespace bs {
 	  return texture;
 	}
 
+	void ImGui_ImplBsf_ShutdownPipeline() {
+		// std::cout << "DESTROY?" << std::endl;
+		// gMaterial.reset();
+		// std::cout << "DESTROY?" << std::endl;
+		renderExt.reset();
+		// std::cout << "DESTROY?" << std::endl;
+		gVertexDecl.reset();
+	}
 
 	void ImGui_ImplBsf_SetupPipeline() {
 
@@ -324,12 +336,13 @@ namespace bs {
 		// no initial data necessary... so just pass in nullptr.
 		renderExt = RendererExtension::create<ct::ImguiRendererExtension>(nullptr);
 
-
 			auto vertexDeclDesc = bs_shared_ptr_new<VertexDataDesc>();
 			vertexDeclDesc->addVertElem(VET_FLOAT2, VES_POSITION);
 			vertexDeclDesc->addVertElem(VET_FLOAT2, VES_TEXCOORD);
 			vertexDeclDesc->addVertElem(VET_COLOR, VES_COLOR);
 			gVertexDecl = VertexDeclaration::create(vertexDeclDesc);
+			assert(vertexDeclDesc->getVertexStride() == sizeof(ImDrawVert));
+
 	}
 
 }
