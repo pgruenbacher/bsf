@@ -2,6 +2,7 @@ shader ImguiBasic
 {
 	raster 
 	{
+		cull = none;
 		scissor = true;
 	};
 
