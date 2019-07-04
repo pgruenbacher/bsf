@@ -51,7 +51,7 @@ static void initCursorMap() {
 }
 
 bool ImGui_ImplBsf_Init(RenderWindow* window, bool install_callbacks) {
-  ImGui_ImplBsf_SetupPipeline();
+  // ImGui_ImplBsf_SetupPipeline();
   // g_Window = window;
   // g_Time = 0.0;
 
@@ -201,9 +201,9 @@ void connectInputs() {
   // gInput().onInputCommand.connect(onInputCommandEntered);
 }
 
-void ImGui_ImplBsf_Shutdown() { ImGui_ImplBsf_ShutdownPipeline(); }
+// void ImGui_ImplBsf_Shutdown() { ImGui_ImplBsf_ShutdownPipeline(); }
 
-void ImGui_ImplBsf_NewFrame() {
+void updateImguiInputs() {
   ImGuiIO& io = ImGui::GetIO();
   IM_ASSERT(io.Fonts->IsBuilt() &&
             "Font atlas not built! It is generally built by the renderer "

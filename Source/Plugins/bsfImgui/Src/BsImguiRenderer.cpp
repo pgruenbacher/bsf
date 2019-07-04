@@ -1,5 +1,6 @@
 
 #include "imgui.h"
+#include "ImGuizmo.h"
 #include "BsPrerequisites.h"
 #include "RenderAPI/BsBlendState.h"
 #include "Renderer/BsParamBlocks.h"
@@ -21,69 +22,123 @@
 #include "Renderer/BsRendererUtility.h"
 #include "Renderer/BsRendererExtension.h"
 #include "./imgui_impl_bsf.h"
-
-
+#include "./BsImGuizmo.h"
 
 namespace bs {
 
-static SPtr<RendererExtension> renderExt;
-static SPtr<VertexDeclaration> gVertexDecl;
-static HMaterial gMaterial;
+HTexture createDefaultFonts()
+{
+  // Build texture atlas
+	// for now let's just use bsf default font.
+  // Build texture atlas
+  ImGuiIO& io = ImGui::GetIO();
+  unsigned char* pixels;
+  int width, height;
+  // io.Fonts->AddFontDefault();
+  io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);   // Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small) because it is more likely to be compatible with user's existing shaders. If your ImTextureId represent a higher-level concept than just a GL texture id, consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
 
-void makeInterfaceFrame2() {
-  ImGui_ImplBsf_NewFrame();
-  ImGui::NewFrame();
 
-
-	static bool show_demo_window = true;
-	static bool show_another_window = false;
-	static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-  {
-  	if (show_demo_window) {
-  		ImGui::ShowDemoWindow(&show_demo_window);
-  	}
-
-    {
-			static float f = 0.0f;
-			static int counter = 0;
-
-      ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-      ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-      ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-      ImGui::Checkbox("Another Window", &show_another_window);
-      ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-      ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-      if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-          counter++;
-      ImGui::SameLine();
-      ImGui::Text("counter = %d", counter);
-
-      ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-      ImGui::End();    	
-    }
-
-	  if (show_another_window)
-	  {
-	      ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-	      ImGui::Text("Hello from another window!");
-	      if (ImGui::Button("Close Me"))
-	          show_another_window = false;
-	      ImGui::End();
-	  }
+  if (false) {
+  	// debug bmp output of the generated texture.
+	  UINT32 bytesPerPixel = 4;
+		UINT32 bmpDataSize = BitmapWriter::getBMPSize(width, height, bytesPerPixel);
+		UINT8* bmpBuffer = bs_newN<UINT8>(bmpDataSize);
+		for (int i = 0; i < width * height; ++i) {
+			// convert alph to black for debugging.
+			// since otherwise it won't be as easy to see the alpha.
+			pixels[i*4] = pixels[i*4 + 3];
+			pixels[i*4 + 1] = pixels[i*4 + 3];
+			pixels[i*4 + 2] = pixels[i*4 + 3];
+		}
+		BitmapWriter::rawPixelsToBMP(pixels, bmpBuffer, width, height, bytesPerPixel);
+		SPtr<DataStream> ds = FileSystem::createAndOpenFile("test.bmp");
+		ds->write(bmpBuffer, bmpDataSize);
+		ds->close();	  	
   }
 
+	TEXTURE_DESC textureDesc;
+	textureDesc.format = PF_RGBA8;
+	textureDesc.width = width;
+	textureDesc.height = height;
+	HTexture texture = Texture::create(textureDesc);
+	SPtr<PixelData> pixelData = PixelData::create(width, height, 1, PF_RGBA8);
+	Vector<Color> colors;
+	for (int i = 0; i < width * height; ++i) {
+		colors.push_back(Color(1,1,1, pixels[i*4 + 3] / 255.f));
+	}
+	pixelData->setColors(colors);
+	texture->writeData(pixelData);
 
-  ImGui::Render();
-	// bs::ct::ImGui_ImplBsf_RenderDrawData(ImGui::GetDrawData());	
+  return texture;
 }
+
+HMaterial defaultMaterial() {
+	Path imguiPath = BuiltinResources::instance().getRawShaderFolder().append("Imgui.bsl");
+	HShader shader = gImporter().import<Shader>(imguiPath);
+	HMaterial material = Material::create(shader);
+	HTexture texture = createDefaultFonts();
+	material->setTexture("gMainTexture", texture);
+}
+// static SPtr<RendererExtension> renderExt;
+// static HMaterial gMaterial;
+
+// void makeInterfaceFrame2(const ct::Camera& camera) {
+//   ImGui_ImplBsf_NewFrame();
+//   ImGui::NewFrame();
+//   // support for ImGuizmo.
+//   ImGuizmo::BeginFrame();
+
+//   static Transform transform;
+// 	static bool show_demo_window = true;
+// 	static bool show_another_window = false;
+// 	static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+//   {
+//   	if (show_demo_window) {
+//   		ImGui::ShowDemoWindow(&show_demo_window);
+//   	}
+
+//     {
+// 			static float f = 0.0f;
+// 			static int counter = 0;
+
+//       ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+//       ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+//       ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+//       ImGui::Checkbox("Another Window", &show_another_window);
+//       ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+//       ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+//       if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+//           counter++;
+//       ImGui::SameLine();
+//       ImGui::Text("counter = %d", counter);
+
+//       ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+//       ImGui::End();    	
+//     }
+
+// 	  if (show_another_window)
+// 	  {
+// 	      ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+// 	      ImGui::Text("Hello from another window!");
+// 	      if (ImGui::Button("Close Me"))
+// 	          show_another_window = false;
+// 	      ImGui::End();
+// 	  }
+//   }
+
+// 	ImGuiIO& io = ImGui::GetIO();
+// 	ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+// 	EditTransform(transform, camera);
+
+//   ImGui::Render();
+// }
 }
 
 
 namespace bs::ct {
-
 
 BS_PARAM_BLOCK_BEGIN(ImguiParamBlockDef)
 	BS_PARAM_BLOCK_ENTRY(float, gInvViewportWidth)
@@ -93,34 +148,74 @@ BS_PARAM_BLOCK_END
 
 ImguiParamBlockDef gImguiParamBlockDef;
 
-void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camera);
-class ImguiRendererExtension : public RendererExtension
-{
-SPtr<GpuParamBlockBuffer> gBuffer;
-public:
-	ImguiRendererExtension() : 
-		RendererExtension(RenderLocation::Overlay, 10)
+// While RendererExtension is in namespace bs, the ImguiRendererExtension is
+// created in the core thread when
+// RendererExtension::create<ct::RendererExtension>(nullptr) is called.
+// class ImguiRendererExtension : public RendererExtension
+// {
+// 	Mutex mImguiRenderMutex;
+// SPtr<GpuParamBlockBuffer> gBuffer;
+// SPtr<VertexDeclaration> gVertexDecl;
+// public:
+
+const UINT32 ImguiRenderPriority = 10;
+
+	ImguiRendererExtension::ImguiRendererExtension() : 
+		RendererExtension(RenderLocation::Overlay, ImguiRenderPriority)
 	{
+		auto vertexDeclDesc = bs_shared_ptr_new<VertexDataDesc>();
+		vertexDeclDesc->addVertElem(VET_FLOAT2, VES_POSITION);
+		vertexDeclDesc->addVertElem(VET_FLOAT2, VES_TEXCOORD);
+		vertexDeclDesc->addVertElem(VET_COLOR, VES_COLOR);
+		gVertexDecl = VertexDeclaration::create(vertexDeclDesc);
+		assert(vertexDeclDesc->getVertexStride() == sizeof(ImDrawVert));
 	}
 	// ... other extension code
 
-	bool check(const ct::Camera& camera) override {
+	void ImguiRendererExtension::initialize(const Any& data) {
+		gMaterial = any_cast<HMaterial>(data);
+	}
+
+	void ImguiRendererExtension::destroy() {
+  	ImGui::DestroyContext();
+	}
+
+	bool ImguiRendererExtension::check(const ct::Camera& camera) {
 		return true;
 	}
 	
-	void render(const ct::Camera& camera) override {
+	void ImguiRendererExtension::render(const ct::Camera& camera) {
 		// std::cout << "RENDERER EXTENSION " << std::endl;
-		makeInterfaceFrame2();
-		ImGui_ImplBsf_RenderDrawData(ImGui::GetDrawData(), camera);
+		makeInterfaceFrame2(camera);
+
+		// do not render at the same time as Imgui::Render()
+		mImguiRenderMutex.lock();
+			renderDrawData(ImGui::GetDrawData(), camera);
+		mImguiRenderMutex.unlock();
 	}
 
-	void ImGui_ImplBsf_SetupRenderState(const ct::Camera& camera, ImDrawData* draw_data, int width, int height);
-	void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camera);
+	// must be called in the main thread.
+	void ImguiRendererExtension::syncImDrawDataToCore() {
+
+		// make sure the render extension is locked as we render out the new data.
+		// do not Render() if drawing at same time
+		mImguiRenderMutex.lock();
+			ImGui::Render();
+		mImguiRenderMutex.unlock();
+		// the main thread can now make updates to the data.
+	  updateImguiInputs();
+	  ImGui::NewFrame();
+	  ImGuizmo::BeginFrame();
+	}
+
+// private:
+	// void setupRenderState(const ct::Camera& camera, ImDrawData* draw_data, int width, int height);
+	// void renderDrawData(ImDrawData* draw_data, const ct::Camera& camera);
 
 
-};
+// };
 
-	void ImguiRendererExtension::ImGui_ImplBsf_SetupRenderState(const ct::Camera& camera, ImDrawData* draw_data, int width, int height)
+	void ImguiRendererExtension::setupRenderState(const ct::Camera& camera, ImDrawData* draw_data, int width, int height)
 	{
   //   auto& renderAPI = RenderAPI::instance();
 		// SPtr<RenderWindow> renderWindow = gCoreApplication().getPrimaryWindow()->getCore();
@@ -154,14 +249,14 @@ public:
 		gRendererUtility().setPassParams(paramSet);
 	}
 
-void ImguiRendererExtension::ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data, const ct::Camera& camera) {
+void ImguiRendererExtension::renderDrawData(ImDrawData* draw_data, const ct::Camera& camera) {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     int fb_width = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
     int fb_height = (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
     if (fb_width == 0 || fb_height == 0)
         return;
 
-    ImGui_ImplBsf_SetupRenderState(camera, draw_data, fb_width, fb_height);
+    setupRenderState(camera, draw_data, fb_width, fb_height);
 
     auto& renderAPI = RenderAPI::instance();
 
@@ -194,7 +289,7 @@ void ImguiRendererExtension::ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data,
 
 				UINT32 numBuffers = 1;
 				renderAPI.setVertexBuffers(0, &vbuf, numBuffers);
-				renderAPI.setVertexDeclaration(gVertexDecl->getCore());
+				renderAPI.setVertexDeclaration(gVertexDecl);
 				renderAPI.setIndexBuffer(ibuf);
 				renderAPI.setDrawOperation(DOT_TRIANGLE_LIST);
 
@@ -206,7 +301,7 @@ void ImguiRendererExtension::ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data,
                 // User callback, registered via ImDrawList::AddCallback()
                 // (ImDrawCallback_ResetRenderState is a special callback value used by the user to request the renderer to reset render state.)
                 if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
-                    ImGui_ImplBsf_SetupRenderState(camera, draw_data, fb_width, fb_height);
+                    setupRenderState(camera, draw_data, fb_width, fb_height);
                 else
                     pcmd->UserCallback(cmd_list, pcmd);
             } else {
@@ -269,80 +364,17 @@ void ImguiRendererExtension::ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data,
 
 namespace bs {	
 
+	// void ImGui_ImplBsf_ShutdownPipeline() {
+	// 	renderExt.reset();
+	// }
 
-	HTexture ImGui_ImplBsf_CreateFontsTexture()
-	{
-	  // Build texture atlas
-		// for now let's just use bsf default font.
-	  // Build texture atlas
-	  ImGuiIO& io = ImGui::GetIO();
-	  unsigned char* pixels;
-	  int width, height;
-	  // io.Fonts->AddFontDefault();
-	  io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);   // Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small) because it is more likely to be compatible with user's existing shaders. If your ImTextureId represent a higher-level concept than just a GL texture id, consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
-
-
-	  if (false) {
-	  	// debug bmp output of the generated texture.
-		  UINT32 bytesPerPixel = 4;
-			UINT32 bmpDataSize = BitmapWriter::getBMPSize(width, height, bytesPerPixel);
-			UINT8* bmpBuffer = bs_newN<UINT8>(bmpDataSize);
-			for (int i = 0; i < width * height; ++i) {
-				// convert alph to black for debugging.
-				// since otherwise it won't be as easy to see the alpha.
-				pixels[i*4] = pixels[i*4 + 3];
-				pixels[i*4 + 1] = pixels[i*4 + 3];
-				pixels[i*4 + 2] = pixels[i*4 + 3];
-			}
-			BitmapWriter::rawPixelsToBMP(pixels, bmpBuffer, width, height, bytesPerPixel);
-			SPtr<DataStream> ds = FileSystem::createAndOpenFile("test.bmp");
-			ds->write(bmpBuffer, bmpDataSize);
-			ds->close();	  	
-	  }
-
-		TEXTURE_DESC textureDesc;
-		textureDesc.format = PF_RGBA8;
-		textureDesc.width = width;
-		textureDesc.height = height;
-		HTexture texture = Texture::create(textureDesc);
-		SPtr<PixelData> pixelData = PixelData::create(width, height, 1, PF_RGBA8);
-		Vector<Color> colors;
-		for (int i = 0; i < width * height; ++i) {
-			colors.push_back(Color(1,1,1, pixels[i*4 + 3] / 255.f));
-		}
-		pixelData->setColors(colors);
-		texture->writeData(pixelData);
-
-	  return texture;
-	}
-
-	void ImGui_ImplBsf_ShutdownPipeline() {
-		// std::cout << "DESTROY?" << std::endl;
-		// gMaterial.reset();
-		// std::cout << "DESTROY?" << std::endl;
-		renderExt.reset();
-		// std::cout << "DESTROY?" << std::endl;
-		gVertexDecl.reset();
-	}
-
-	void ImGui_ImplBsf_SetupPipeline() {
+	// void ImGui_ImplBsf_SetupPipeline() {
 
 		// HShader shader = BuiltinResources::instance().getShader("Imgui.bsl");
-		Path imguiPath = BuiltinResources::instance().getRawShaderFolder().append("Imgui.bsl");
-		HShader shader = gImporter().import<Shader>(imguiPath);
-		gMaterial = Material::create(shader);
-		HTexture texture = ImGui_ImplBsf_CreateFontsTexture();
-		gMaterial->setTexture("gMainTexture", texture);
 		// no initial data necessary... so just pass in nullptr.
-		renderExt = RendererExtension::create<ct::ImguiRendererExtension>(nullptr);
+		// renderExt = RendererExtension::create<ct::ImguiRendererExtension>(nullptr);
 
-			auto vertexDeclDesc = bs_shared_ptr_new<VertexDataDesc>();
-			vertexDeclDesc->addVertElem(VET_FLOAT2, VES_POSITION);
-			vertexDeclDesc->addVertElem(VET_FLOAT2, VES_TEXCOORD);
-			vertexDeclDesc->addVertElem(VET_COLOR, VES_COLOR);
-			gVertexDecl = VertexDeclaration::create(vertexDeclDesc);
-			assert(vertexDeclDesc->getVertexStride() == sizeof(ImDrawVert));
 
-	}
+	// }
 
 }

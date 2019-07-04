@@ -4,7 +4,7 @@
 
 file(GLOB SRCS
 	ThirdParty/imgui/*.cpp
-	ThirdParty/imgui-Guizmo/*.cpp
+	ThirdParty/ImGuizmo/*.cpp
 	Src/*.cpp
 )
 
@@ -16,7 +16,7 @@ add_common_flags(bsfImgui)
 
 target_include_directories(bsfImgui PUBLIC
 	ThirdParty/imgui
-	ThirdParty/imgui-Guizmo
+	ThirdParty/ImGuizmo
 )
 
 target_link_libraries(bsfImgui bsf)

@@ -4,25 +4,49 @@
 
 #pragma once
 
+#include "BsCorePrerequisites.h"
+#include "Renderer/BsRendererExtension.h"
+
 namespace bs {
+
 class RenderWindow;
 IMGUI_IMPL_API bool     ImGui_ImplBsf_Init(bs::RenderWindow* window, bool install_callbacks = true);
 // IMGUI_IMPL_API bool     ImGui_ImplBsf_InitForVulkan(bs::RenderWindow* window, bool install_callbacks = true);
-IMGUI_IMPL_API void     ImGui_ImplBsf_Shutdown();
-IMGUI_IMPL_API void     ImGui_ImplBsf_NewFrame();
+// IMGUI_IMPL_API void     ImGui_ImplBsf_Shutdown();
+IMGUI_IMPL_API void     updateImguiInputs();
 
-void ImGui_ImplBsf_SetupPipeline();
-void ImGui_ImplBsf_ShutdownPipeline();
-}
+// void ImGui_ImplBsf_SetupPipeline();
+// void ImGui_ImplBsf_ShutdownPipeline();
+void BsDemoImguiUI();
 
-// namespace bs::ct {
-// 	void ImGui_ImplBsf_RenderDrawData(ImDrawData* draw_data);
-// }
+}   // namespace bs
 
+namespace bs::ct {
 
-// InitXXX function with 'install_callbacks=true': install GLFW callbacks. They will call user's previously installed callbacks, if any.
-// InitXXX function with 'install_callbacks=false': do not install GLFW callbacks. You will need to call them yourself from your own GLFW callbacks.
-// IMGUI_IMPL_API void     ImGui_ImplBsf_MouseButtonCallback(bs::RenderWindow* window, int button, int action, int mods);
-// IMGUI_IMPL_API void     ImGui_ImplBsf_ScrollCallback(bs::RenderWindow* window, double xoffset, double yoffset);
-// IMGUI_IMPL_API void     ImGui_ImplBsf_KeyCallback(bs::RenderWindow* window, int key, int scancode, int action, int mods);
-// IMGUI_IMPL_API void     ImGui_ImplBsf_CharCallback(bs::RenderWindow* window, unsigned int c);
+class ImguiRendererExtension : public RendererExtension {
+  Mutex mImguiRenderMutex;
+  SPtr<GpuParamBlockBuffer> gBuffer;
+  SPtr<VertexDeclaration> gVertexDecl;
+  HMaterial gMaterial;
+
+ public:
+  ImguiRendererExtension();
+  // ... other extension code
+
+  void initialize(const Any& data) override;
+  void destroy() override;
+
+  bool check(const ct::Camera& camera) override;
+
+  void render(const ct::Camera& camera) override;
+
+  // must be called in the main thread.
+  void syncImDrawDataToCore();
+
+ private:
+  void setupRenderState(const ct::Camera& camera, ImDrawData* draw_data,
+                        int width, int height);
+  void renderDrawData(ImDrawData* draw_data, const ct::Camera& camera);
+};
+
+}  // namespace bs::ct

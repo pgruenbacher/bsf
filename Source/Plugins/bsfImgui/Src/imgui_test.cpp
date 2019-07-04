@@ -6,6 +6,10 @@
 #include "BsCoreApplication.h"
 #include "CoreThread/BsCoreThread.h"
 #include "BsApplication.h"
+#include "Resources/BsBuiltinResources.h"
+#include "Material/BsMaterial.h"
+#include "Components/BsCRenderable.h"
+#include "Scene/BsSceneObject.h"
 
 namespace bs {
 
@@ -44,6 +48,35 @@ class ImguiTestSuite : public bs::Test {};
 // 	// bs::ct::ImGui_ImplBsf_RenderDrawData(ImGui::GetDrawData());	
 // }
 
+class ApplicationWithImgui : public Application {
+	SPtr<ct::ImguiRendererExtension> mImguiRenderExt;
+
+	void update() override {
+		Application::update();
+
+	}
+};
+
+class DemoUI : public Component {
+
+	void update() override {
+		Component::update();
+		BsDemoImguiUI();
+	}
+};
+
+HSceneObject addBox() {
+	HShader shader = gBuiltinResources().getBuiltinShader(BuiltinShader::Standard);
+	HMaterial material = Material::create(shader);
+	HMesh boxMesh = gBuiltinResources().getMesh(BuiltinMesh::Box);
+	HSceneObject boxSO = SceneObject::create("Box");
+	HRenderable boxRenderable = boxSO->addComponent<CRenderable>();
+	boxRenderable->setMesh(boxMesh);
+	boxRenderable->setMaterial(material);
+	boxSO->setPosition(Vector3(0.0f, 0.5f, 0.5f));
+	return boxSO;
+}
+
 TEST_F(ImguiTestSuite, TestImgui) {  // Setup Dear ImGui context
 
 	addFlyableCamera();
@@ -60,13 +93,13 @@ TEST_F(ImguiTestSuite, TestImgui) {  // Setup Dear ImGui context
   ImGui_ImplBsf_Init(window.get());
 
   // makeInterfaceFrame();
-
+  addBox();
 	// Application::instance().runMainSteps(4);
 	Application::instance().runMainLoop();
 
   // cleanup.
-  ImGui_ImplBsf_Shutdown();
-  ImGui::DestroyContext();
+  // ImGui_ImplBsf_Shutdown();
+  // ImGui::DestroyContext();
 
 }
 
