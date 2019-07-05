@@ -27,7 +27,7 @@
 
 namespace bs {
 
-void BsDemoImguiUI() {
+void demoImguiUI() {
 
   static Transform transform;
 	static bool show_demo_window = true;

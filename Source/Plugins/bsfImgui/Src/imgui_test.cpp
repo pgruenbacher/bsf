@@ -13,7 +13,8 @@
 
 namespace bs {
 
-class ImguiTestSuite : public bs::Test {};
+class ImguiTestSuite : public bs::Test {
+};
 
 // void makeInterfaceFrame() {
 //   ImGui_ImplBsf_NewFrame();
@@ -51,17 +52,31 @@ class ImguiTestSuite : public bs::Test {};
 class ApplicationWithImgui : public Application {
 	SPtr<ct::ImguiRendererExtension> mImguiRenderExt;
 
-	void update() override {
-		Application::update();
+	void onStartUp() override {
+		Application::onStartUp();
+  	HMaterial imguiMaterial = defaultImguiMaterial();
+		mImguiRenderExt = RendererExtension::create<ct::ImguiRendererExtension>(imguiMaterial);
+	}
 
+	void preUpdate() override {
+		Application::preUpdate();
+		mImguiRenderExt->syncImDrawDataToCore();
 	}
 };
 
 class DemoUI : public Component {
+public:
+	DemoUI(const HSceneObject& parent)
+		: Component(parent)
+	{
+		setFlag(ComponentFlag::AlwaysRun, true);
+		setName("DemoUI");
+	}
 
 	void update() override {
+		std::cout << "DRAW DATA? " << std::endl;
 		Component::update();
-		BsDemoImguiUI();
+		demoImguiUI();
 	}
 };
 
@@ -81,22 +96,32 @@ TEST_F(ImguiTestSuite, TestImgui) {  // Setup Dear ImGui context
 
 	addFlyableCamera();
 
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-  ImGuiIO& io = ImGui::GetIO(); (void)io;
+  // ImGuiIO& io = ImGui::GetIO(); (void)io;
   // Setup Dear ImGui style
-  ImGui::StyleColorsDark();
 
-  SPtr<RenderWindow> window = gCoreApplication().getPrimaryWindow();
+  // SPtr<RenderWindow> window = gCoreApplication().getPrimaryWindow();
   // SPtr<GLContext> ctx =
 
-  ImGui_ImplBsf_Init(window.get());
+ //  HMaterial imguiMaterial = defaultImguiMaterial();
+	// SPtr<ct::ImguiRendererExtension> renderExt = RendererExtension::create<ct::ImguiRendererExtension>(imguiMaterial);
+
+	DynLib* gRendererPlugin = nullptr;
+
+	Application::instance().loadPlugin("bsfImgui", &gRendererPlugin);
 
   // makeInterfaceFrame();
   addBox();
+  // auto obj = SceneObject::create("UI");
+  // obj->addComponent<DemoUI>();
+  // DemoUI::create();
 	// Application::instance().runMainSteps(4);
+	// while(true) {
+	// 	renderExt->syncImDrawDataToCore();
+	// 	Application::instance().runMainSteps(1);
+	// }
 	Application::instance().runMainLoop();
 
+	Application::instance().unloadPlugin(gRendererPlugin);
   // cleanup.
   // ImGui_ImplBsf_Shutdown();
   // ImGui::DestroyContext();

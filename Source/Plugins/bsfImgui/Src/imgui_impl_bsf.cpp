@@ -50,11 +50,7 @@ static void initCursorMap() {
   g_MouseCursors[ImGuiMouseCursor_Hand] = CursorType::Deny;
 }
 
-bool ImGui_ImplBsf_Init(RenderWindow* window, bool install_callbacks) {
-  // ImGui_ImplBsf_SetupPipeline();
-  // g_Window = window;
-  // g_Time = 0.0;
-
+void initInputs() {	
   // Setup back-end capabilities flags
   ImGuiIO& io = ImGui::GetIO();
   io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;  // We can honor
@@ -94,6 +90,14 @@ bool ImGui_ImplBsf_Init(RenderWindow* window, bool install_callbacks) {
 
   initCursorMap();
   connectInputs();
+}
+
+bool initImgui() {
+	initInputs();
+
+  updateImguiInputs();
+  ImGui::NewFrame();
+
   return true;
 }
 
@@ -117,12 +121,15 @@ static HEvent g_OnPointerPressedConn;
 static HEvent g_OnPointerReleasedConn;
 static HEvent g_OnPointerDoubleClick;
 static HEvent g_OnTextInputConn;
+static HEvent g_OnButtonUp;
+static HEvent g_OnButtonDown;
 
 void onPointerMoved(const PointerEvent& event) {
   ImGuiIO& io = ImGui::GetIO();
   io.MousePos.x = event.screenPos.x - displayLeft;
   io.MousePos.y = event.screenPos.y - displayTop;
   if (event.mouseWheelScrollAmount > 0) {
+  	std::cout << "MOUSE? " << std::endl;
     io.MouseWheel += 1;
   } else if (event.mouseWheelScrollAmount < 0) {
     io.MouseWheel -= 1;
@@ -187,6 +194,16 @@ void onButtonDown(const ButtonEvent& event) {
 	}
 }
 
+void disconnectImgui() {
+	g_OnPointerMovedConn.disconnect();
+	g_OnPointerPressedConn.disconnect();
+	g_OnPointerReleasedConn.disconnect();
+	g_OnPointerDoubleClick.disconnect();
+	g_OnTextInputConn.disconnect();
+	g_OnButtonUp.disconnect();
+	g_OnButtonDown.disconnect();
+}
+
 void connectInputs() {
   g_OnPointerMovedConn = gInput().onPointerMoved.connect(&onPointerMoved);
   g_OnPointerPressedConn = gInput().onPointerPressed.connect(&onPointerPressed);
@@ -195,8 +212,8 @@ void connectInputs() {
   g_OnPointerDoubleClick =
       gInput().onPointerDoubleClick.connect(&onPointerDoubleClick);
   g_OnTextInputConn = gInput().onCharInput.connect(&onCharInput);
-  gInput().onButtonUp.connect(&onButtonUp);
-  gInput().onButtonDown.connect(&onButtonDown);
+  g_OnButtonUp = gInput().onButtonUp.connect(&onButtonUp);
+  g_OnButtonDown = gInput().onButtonDown.connect(&onButtonDown);
   // g_OnInputCommandConn =
   // gInput().onInputCommand.connect(onInputCommandEntered);
 }

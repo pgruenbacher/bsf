@@ -15,10 +15,10 @@ class AppEnvironment : public ::testing::Environment {
  public:
 
   // Override this to define how to set up the environment.
-  void SetUp() override;
+  virtual void SetUp() override;
 
   // Override this to define how to tear down the environment.
-  void TearDown() override;
+  virtual void TearDown() override;
 };
 
 

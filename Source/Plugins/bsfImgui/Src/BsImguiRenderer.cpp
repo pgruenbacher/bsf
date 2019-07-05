@@ -72,12 +72,13 @@ HTexture createDefaultFonts()
   return texture;
 }
 
-HMaterial defaultMaterial() {
+HMaterial defaultImguiMaterial() {
 	Path imguiPath = BuiltinResources::instance().getRawShaderFolder().append("Imgui.bsl");
 	HShader shader = gImporter().import<Shader>(imguiPath);
 	HMaterial material = Material::create(shader);
 	HTexture texture = createDefaultFonts();
 	material->setTexture("gMainTexture", texture);
+	return material;
 }
 // static SPtr<RendererExtension> renderExt;
 // static HMaterial gMaterial;
@@ -173,11 +174,15 @@ const UINT32 ImguiRenderPriority = 10;
 	// ... other extension code
 
 	void ImguiRendererExtension::initialize(const Any& data) {
+		// std::cout << "INITIALIZE? " << std::endl;
 		gMaterial = any_cast<HMaterial>(data);
+		// gMaterial = defaultImguiMaterial();
+		// allow for new frame by any imgui logic.
 	}
 
 	void ImguiRendererExtension::destroy() {
   	ImGui::DestroyContext();
+  	disconnectImgui();
 	}
 
 	bool ImguiRendererExtension::check(const ct::Camera& camera) {
@@ -186,12 +191,44 @@ const UINT32 ImguiRenderPriority = 10;
 	
 	void ImguiRendererExtension::render(const ct::Camera& camera) {
 		// std::cout << "RENDERER EXTENSION " << std::endl;
-		makeInterfaceFrame2(camera);
+		// makeInterfaceFrame2(camera);
+		// assert(gMaterial);
+		assert(gMaterial.isLoaded());
 
-		// do not render at the same time as Imgui::Render()
+		std::cout << "SYNC?? " << std::endl;
 		mImguiRenderMutex.lock();
-			renderDrawData(ImGui::GetDrawData(), camera);
+		ImGui::Render();
+		renderDrawData(ImGui::GetDrawData(), camera);
 		mImguiRenderMutex.unlock();
+		std::cout << "DONE SYNC? " << std::endl;
+		// the main thread can now make updates to the data.
+	  updateImguiInputs();
+	  ImGui::NewFrame();
+	  // ImGuizmo::BeginFrame();
+	  demoImguiUI();
+		mImguiRenderMutex.lock();
+		std::cout << "GET DRAW DATA? " << std::endl;
+		mImguiRenderMutex.unlock();
+		std::cout << "DONE DRAW DATA? " << std::endl;
+
+
+
+
+		// ImGui::Render();
+
+	 //  updateImguiInputs();
+		// renderDrawData(ImGui::GetDrawData(), camera);
+	 //  ImGui::NewFrame();
+	 //  ImGuizmo::BeginFrame();
+	 //  demoImguiUI();
+
+		// // do not render at the same time as Imgui::Render()
+		// mImguiRenderMutex.lock();
+		// std::cout << "GET DRAW DATA? " << std::endl;
+		// ImGui::Render();
+		// renderDrawData(ImGui::GetDrawData(), camera);
+		// mImguiRenderMutex.unlock();
+		// std::cout << "DONE DRAW DATA? " << std::endl;
 	}
 
 	// must be called in the main thread.
@@ -199,13 +236,16 @@ const UINT32 ImguiRenderPriority = 10;
 
 		// make sure the render extension is locked as we render out the new data.
 		// do not Render() if drawing at same time
-		mImguiRenderMutex.lock();
-			ImGui::Render();
-		mImguiRenderMutex.unlock();
-		// the main thread can now make updates to the data.
-	  updateImguiInputs();
-	  ImGui::NewFrame();
-	  ImGuizmo::BeginFrame();
+		// std::cout << "SYNC?? " << std::endl;
+		// mImguiRenderMutex.lock();
+		// mImguiRenderMutex.unlock();
+		// std::cout << "DONE SYNC? " << std::endl;
+		// // the main thread can now make updates to the data.
+		// ImGui::EndFrame();
+	 //  updateImguiInputs();
+	 //  ImGui::NewFrame();
+	 //  ImGuizmo::BeginFrame();
+	 //  // demoImguiUI();
 	}
 
 // private:
