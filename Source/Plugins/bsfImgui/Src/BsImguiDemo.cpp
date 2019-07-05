@@ -3,33 +3,13 @@
 #include "imgui.h"
 #include "ImGuizmo.h"
 #include "BsPrerequisites.h"
-#include "RenderAPI/BsBlendState.h"
-#include "Renderer/BsParamBlocks.h"
-#include "Debug/BsBitmapWriter.h"
-// #include "Mesh/BsMesh.h"
-#include "Renderer/BsCamera.h"
-#include "RenderAPI/BsVertexDataDesc.h"
-#include "Mesh/BsMeshHeap.h"
-// #include "Mesh/BsTransientMesh.h"
-#include "Material/BsMaterial.h"
-#include "RenderAPI/BsIndexBuffer.h"
-#include "RenderAPI/BsVertexBuffer.h"
-#include "Importer/BsImporter.h"
-#include "Material/BsGpuParamsSet.h"
-#include "Material/BsShader.h"
-#include "Resources/BsBuiltinResources.h"
-#include "FileSystem/BsFileSystem.h"
-#include "FileSystem/BsDataStream.h"
-#include "Renderer/BsRendererUtility.h"
-#include "Renderer/BsRendererExtension.h"
-#include "./imgui_impl_bsf.h"
+#include "./BsImgui.h"
 #include "./BsImGuizmo.h"
 
 namespace bs {
 
+// copied from imgui github examples.
 void demoImguiUI() {
-
-  static Transform transform;
 	static bool show_demo_window = true;
 	static bool show_another_window = false;
 	static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);

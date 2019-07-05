@@ -21,10 +21,14 @@
 #include "FileSystem/BsDataStream.h"
 #include "Renderer/BsRendererUtility.h"
 #include "Renderer/BsRendererExtension.h"
-#include "./imgui_impl_bsf.h"
+
+#include "./BsImgui.h"
 #include "./BsImGuizmo.h"
 
 namespace bs {
+
+// forward declare
+void updateImguiInputs();
 
 HTexture createDefaultFonts()
 {
@@ -80,341 +84,187 @@ HMaterial defaultImguiMaterial() {
 	material->setTexture("gMainTexture", texture);
 	return material;
 }
-// static SPtr<RendererExtension> renderExt;
-// static HMaterial gMaterial;
 
-// void makeInterfaceFrame2(const ct::Camera& camera) {
-//   ImGui_ImplBsf_NewFrame();
-//   ImGui::NewFrame();
-//   // support for ImGuizmo.
-//   ImGuizmo::BeginFrame();
-
-//   static Transform transform;
-// 	static bool show_demo_window = true;
-// 	static bool show_another_window = false;
-// 	static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-//   {
-//   	if (show_demo_window) {
-//   		ImGui::ShowDemoWindow(&show_demo_window);
-//   	}
-
-//     {
-// 			static float f = 0.0f;
-// 			static int counter = 0;
-
-//       ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-//       ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-//       ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-//       ImGui::Checkbox("Another Window", &show_another_window);
-//       ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-//       ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-//       if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-//           counter++;
-//       ImGui::SameLine();
-//       ImGui::Text("counter = %d", counter);
-
-//       ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-//       ImGui::End();    	
-//     }
-
-// 	  if (show_another_window)
-// 	  {
-// 	      ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-// 	      ImGui::Text("Hello from another window!");
-// 	      if (ImGui::Button("Close Me"))
-// 	          show_another_window = false;
-// 	      ImGui::End();
-// 	  }
-//   }
-
-// 	ImGuiIO& io = ImGui::GetIO();
-// 	ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-// 	EditTransform(transform, camera);
-
-//   ImGui::Render();
-// }
-}
-
+}  // namespace bs
 
 namespace bs::ct {
 
 BS_PARAM_BLOCK_BEGIN(ImguiParamBlockDef)
-	BS_PARAM_BLOCK_ENTRY(float, gInvViewportWidth)
-	BS_PARAM_BLOCK_ENTRY(float, gInvViewportHeight)
-	BS_PARAM_BLOCK_ENTRY(float, gViewportYFlip)
+BS_PARAM_BLOCK_ENTRY(float, gInvViewportWidth)
+BS_PARAM_BLOCK_ENTRY(float, gInvViewportHeight)
+BS_PARAM_BLOCK_ENTRY(float, gViewportYFlip)
 BS_PARAM_BLOCK_END
 
 ImguiParamBlockDef gImguiParamBlockDef;
 
-// While RendererExtension is in namespace bs, the ImguiRendererExtension is
-// created in the core thread when
-// RendererExtension::create<ct::RendererExtension>(nullptr) is called.
-// class ImguiRendererExtension : public RendererExtension
-// {
-// 	Mutex mImguiRenderMutex;
-// SPtr<GpuParamBlockBuffer> gBuffer;
-// SPtr<VertexDeclaration> gVertexDecl;
-// public:
-
 const UINT32 ImguiRenderPriority = 10;
 
-	ImguiRendererExtension::ImguiRendererExtension() : 
-		RendererExtension(RenderLocation::Overlay, ImguiRenderPriority)
-	{
-		auto vertexDeclDesc = bs_shared_ptr_new<VertexDataDesc>();
-		vertexDeclDesc->addVertElem(VET_FLOAT2, VES_POSITION);
-		vertexDeclDesc->addVertElem(VET_FLOAT2, VES_TEXCOORD);
-		vertexDeclDesc->addVertElem(VET_COLOR, VES_COLOR);
-		gVertexDecl = VertexDeclaration::create(vertexDeclDesc);
-		assert(vertexDeclDesc->getVertexStride() == sizeof(ImDrawVert));
-	}
-	// ... other extension code
+ImguiRendererExtension::ImguiRendererExtension()
+    : RendererExtension(RenderLocation::Overlay, ImguiRenderPriority) {
+  auto vertexDeclDesc = bs_shared_ptr_new<VertexDataDesc>();
+  vertexDeclDesc->addVertElem(VET_FLOAT2, VES_POSITION);
+  vertexDeclDesc->addVertElem(VET_FLOAT2, VES_TEXCOORD);
+  vertexDeclDesc->addVertElem(VET_COLOR, VES_COLOR);
+  gVertexDecl = VertexDeclaration::create(vertexDeclDesc);
+  assert(vertexDeclDesc->getVertexStride() == sizeof(ImDrawVert));
+}
+// ... other extension code
 
-	void ImguiRendererExtension::initialize(const Any& data) {
-		// std::cout << "INITIALIZE? " << std::endl;
-		gMaterial = any_cast<HMaterial>(data);
-		// gMaterial = defaultImguiMaterial();
-		// allow for new frame by any imgui logic.
-	}
+void ImguiRendererExtension::initialize(const Any& data) {
+  gMaterial = any_cast<HMaterial>(data);
+}
 
-	void ImguiRendererExtension::destroy() {
-  	ImGui::DestroyContext();
-  	disconnectImgui();
-	}
+void ImguiRendererExtension::destroy() {
+}
 
-	bool ImguiRendererExtension::check(const ct::Camera& camera) {
-		return true;
-	}
-	
-	void ImguiRendererExtension::render(const ct::Camera& camera) {
-		// std::cout << "RENDERER EXTENSION " << std::endl;
-		// makeInterfaceFrame2(camera);
-		// assert(gMaterial);
-		assert(gMaterial.isLoaded());
+bool ImguiRendererExtension::check(const ct::Camera& camera) { return true; }
 
-		std::cout << "SYNC?? " << std::endl;
-		mImguiRenderMutex.lock();
-		ImGui::Render();
-		renderDrawData(ImGui::GetDrawData(), camera);
-		mImguiRenderMutex.unlock();
-		std::cout << "DONE SYNC? " << std::endl;
-		// the main thread can now make updates to the data.
-	  updateImguiInputs();
-	  ImGui::NewFrame();
-	  // ImGuizmo::BeginFrame();
-	  demoImguiUI();
-		mImguiRenderMutex.lock();
-		std::cout << "GET DRAW DATA? " << std::endl;
-		mImguiRenderMutex.unlock();
-		std::cout << "DONE DRAW DATA? " << std::endl;
+void ImguiRendererExtension::render(const ct::Camera& camera) {
+  assert(gMaterial.isLoaded());
+  ImGui::Render();
+  renderDrawData(ImGui::GetDrawData(), camera);
+  updateImguiInputs();
+  ImGui::NewFrame();
+  ImGuizmo::BeginFrame();
+}
 
+// must be called in the main thread. the plugin update method should handle
+// it. at the time i thought it may be necessary to "copy" draw data to the
+// core thread, but it seems to be working with everything running on the core
+// thread while the imgui logic occurs on the main thread. probably due to
+// coincidental timing and not any actual safety. We could maybe do some mutex
+// locking to make sure the main update thread is finished before the core
+// render thread does the overlay.
+void ImguiRendererExtension::syncImDrawDataToCore() {
+}
 
+// setupRenderState is meant to update the global gpu parameters that will be consistent
+// for all of the imguid draw commands.
+void ImguiRendererExtension::setupRenderState(const ct::Camera& camera,
+                                              ImDrawData* draw_data, int width,
+                                              int height) {
 
+  float invViewportWidth =
+      1.0f / (camera.getViewport()->getPixelArea().width * 0.5f);
+  float invViewportHeight =
+      1.0f / (camera.getViewport()->getPixelArea().height * 0.5f);
+  float viewflipYFlip =
+      (gCaps().conventions.ndcYAxis == Conventions::Axis::Down) ? -1.0f : 1.0f;
 
-		// ImGui::Render();
+  if (!gBuffer) {
+    gBuffer = gImguiParamBlockDef.createBuffer();
+  }
+  gImguiParamBlockDef.gInvViewportWidth.set(gBuffer, invViewportWidth);
+  gImguiParamBlockDef.gInvViewportHeight.set(gBuffer, invViewportHeight);
+  gImguiParamBlockDef.gViewportYFlip.set(gBuffer, viewflipYFlip);
+  gBuffer->flushToGPU();
 
-	 //  updateImguiInputs();
-		// renderDrawData(ImGui::GetDrawData(), camera);
-	 //  ImGui::NewFrame();
-	 //  ImGuizmo::BeginFrame();
-	 //  demoImguiUI();
+  UINT32 passIdx = 0;
+  UINT32 techniqueIdx = gMaterial->getDefaultTechnique();
 
-		// // do not render at the same time as Imgui::Render()
-		// mImguiRenderMutex.lock();
-		// std::cout << "GET DRAW DATA? " << std::endl;
-		// ImGui::Render();
-		// renderDrawData(ImGui::GetDrawData(), camera);
-		// mImguiRenderMutex.unlock();
-		// std::cout << "DONE DRAW DATA? " << std::endl;
-	}
+  SPtr<GpuParamsSet> paramSet =
+      gMaterial->getCore()->createParamsSet(techniqueIdx);
+  auto mParamBufferIdx = paramSet->getParamBlockBufferIndex("GUIParams");
+  // confirm that invalid param buffer indices are (UINT32-1)
+  assert(paramSet->getParamBlockBufferIndex("NoParamsTest") == (UINT32)-1);
+  // confirm that buffer index is valid
+  assert(mParamBufferIdx != (UINT32)-1);
+  gMaterial->getCore()->updateParamsSet(paramSet);
+  paramSet->setParamBlockBuffer(mParamBufferIdx, gBuffer, false);
+  gRendererUtility().setPass(gMaterial->getCore(), passIdx, techniqueIdx);
+  gRendererUtility().setPassParams(paramSet);
+}
 
-	// must be called in the main thread.
-	void ImguiRendererExtension::syncImDrawDataToCore() {
+void ImguiRendererExtension::renderDrawData(ImDrawData* draw_data,
+                                            const ct::Camera& camera) {
+  // Avoid rendering when minimized, scale coordinates for retina displays
+  // (screen coordinates != framebuffer coordinates)
+  int fb_width =
+      (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
+  int fb_height =
+      (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
+  if (fb_width == 0 || fb_height == 0) return;
 
-		// make sure the render extension is locked as we render out the new data.
-		// do not Render() if drawing at same time
-		// std::cout << "SYNC?? " << std::endl;
-		// mImguiRenderMutex.lock();
-		// mImguiRenderMutex.unlock();
-		// std::cout << "DONE SYNC? " << std::endl;
-		// // the main thread can now make updates to the data.
-		// ImGui::EndFrame();
-	 //  updateImguiInputs();
-	 //  ImGui::NewFrame();
-	 //  ImGuizmo::BeginFrame();
-	 //  // demoImguiUI();
-	}
+  setupRenderState(camera, draw_data, fb_width, fb_height);
 
-// private:
-	// void setupRenderState(const ct::Camera& camera, ImDrawData* draw_data, int width, int height);
-	// void renderDrawData(ImDrawData* draw_data, const ct::Camera& camera);
+  auto& renderAPI = RenderAPI::instance();
 
+  // Will project scissor/clipping rectangles into framebuffer space
+  // (0,0) unless using multi-viewports
+  ImVec2 clip_off =  draw_data->DisplayPos;  
+  // (1,1) unless using retina
+	// display which are often (2,2)
+  ImVec2 clip_scale = draw_data->FramebufferScale;  
 
-// };
+  for (int n = 0; n < draw_data->CmdListsCount; n++) {
+    const ImDrawList* cmd_list = draw_data->CmdLists[n];
 
-	void ImguiRendererExtension::setupRenderState(const ct::Camera& camera, ImDrawData* draw_data, int width, int height)
-	{
-  //   auto& renderAPI = RenderAPI::instance();
-		// SPtr<RenderWindow> renderWindow = gCoreApplication().getPrimaryWindow()->getCore();
-		// renderAPI.setRenderTarget(renderWindow);
+    /*----------  Write out vertex and index buffers  ----------*/
+    
+    VERTEX_BUFFER_DESC desc;
+    desc.vertexSize = sizeof(ImDrawVert);
+    desc.numVerts = cmd_list->VtxBuffer.Size;
+    desc.usage = GBU_STATIC;
+    SPtr<VertexBuffer> vbuf = VertexBuffer::create(desc);
+    vbuf->writeData(0, sizeof(ImDrawVert) * desc.numVerts,
+                    cmd_list->VtxBuffer.Data);
 
-		float invViewportWidth = 1.0f / (camera.getViewport()->getPixelArea().width * 0.5f);
-		float invViewportHeight = 1.0f / (camera.getViewport()->getPixelArea().height * 0.5f);
-		float viewflipYFlip = (gCaps().conventions.ndcYAxis == Conventions::Axis::Down) ? -1.0f : 1.0f;
+    // assert that imgui index type is 16 bit or 2 bytes.
+    static_assert(sizeof(ImDrawIdx) == 2);
+    INDEX_BUFFER_DESC indexDesc;
+    indexDesc.indexType = IT_16BIT;
+    indexDesc.numIndices = cmd_list->IdxBuffer.Size;
+    indexDesc.usage = GBU_STATIC;
+    SPtr<IndexBuffer> ibuf = IndexBuffer::create(indexDesc);
+    ibuf->writeData(0, sizeof(ImDrawIdx) * indexDesc.numIndices,
+                    cmd_list->IdxBuffer.Data);
 
-		if (!gBuffer) {			
-			gBuffer = gImguiParamBlockDef.createBuffer();
-		}
-		gImguiParamBlockDef.gInvViewportWidth.set(gBuffer, invViewportWidth);
-		gImguiParamBlockDef.gInvViewportHeight.set(gBuffer, invViewportHeight);
-		gImguiParamBlockDef.gViewportYFlip.set(gBuffer, viewflipYFlip);
-		gBuffer->flushToGPU();
+    /*----------  Bind the vertex and index buffers  ----------*/
+    UINT32 numBuffers = 1;
+    renderAPI.setVertexBuffers(0, &vbuf, numBuffers);
+    renderAPI.setVertexDeclaration(gVertexDecl);
+    renderAPI.setIndexBuffer(ibuf);
+    renderAPI.setDrawOperation(DOT_TRIANGLE_LIST);
 
+    /*----------  For each command, scissor and draw  ----------*/
 
-		UINT32 passIdx = 0;
-		UINT32 techniqueIdx = gMaterial->getDefaultTechnique();
+    for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
+      const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
+      if (pcmd->UserCallback) {
+        // User callback, registered via ImDrawList::AddCallback()
+        // (ImDrawCallback_ResetRenderState is a special callback value used by
+        // the user to request the renderer to reset render state.)
+        if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
+          setupRenderState(camera, draw_data, fb_width, fb_height);
+        else
+          pcmd->UserCallback(cmd_list, pcmd);
+      } else {
+        // Project scissor/clipping rectangles into framebuffer space
+        ImVec4 clip_rect;
+        clip_rect.x = (pcmd->ClipRect.x - clip_off.x) * clip_scale.x;
+        clip_rect.y = (pcmd->ClipRect.y - clip_off.y) * clip_scale.y;
+        clip_rect.z = (pcmd->ClipRect.z - clip_off.x) * clip_scale.x;
+        clip_rect.w = (pcmd->ClipRect.w - clip_off.y) * clip_scale.y;
 
-		SPtr<GpuParamsSet> paramSet = gMaterial->getCore()->createParamsSet(techniqueIdx);
-		auto mParamBufferIdx = paramSet->getParamBlockBufferIndex("GUIParams");
-		// confirm that invalid param buffer indices are (UINT32-1)
-		assert( paramSet->getParamBlockBufferIndex("NoParamsTest") == (UINT32)-1);
-		// confirm that buffer index is valid
-		assert(mParamBufferIdx != (UINT32)-1);
-		gMaterial->getCore()->updateParamsSet(paramSet);
-		paramSet->setParamBlockBuffer(mParamBufferIdx, gBuffer, false);
-		gRendererUtility().setPass(gMaterial->getCore(), passIdx, techniqueIdx);
-		gRendererUtility().setPassParams(paramSet);
-	}
+        if (clip_rect.x < fb_width && clip_rect.y < fb_height &&
+            clip_rect.z >= 0.0f && clip_rect.w >= 0.0f) {
+          assert((clip_rect.z - clip_rect.x) >= 0);
+          assert(((fb_height - clip_rect.w)) >= 0);
+          assert(((clip_rect.w - clip_rect.y)) >= 0);
 
-void ImguiRendererExtension::renderDrawData(ImDrawData* draw_data, const ct::Camera& camera) {
-    // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
-    int fb_width = (int)(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
-    int fb_height = (int)(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
-    if (fb_width == 0 || fb_height == 0)
-        return;
+          renderAPI.setScissorRect((int)(clip_rect.x), (int)(clip_rect.y),
+                                   (int)(clip_rect.z), (int)(clip_rect.w));
 
-    setupRenderState(camera, draw_data, fb_width, fb_height);
-
-    auto& renderAPI = RenderAPI::instance();
-
-    // Will project scissor/clipping rectangles into framebuffer space
-    ImVec2 clip_off = draw_data->DisplayPos;         // (0,0) unless using multi-viewports
-    ImVec2 clip_scale = draw_data->FramebufferScale; // (1,1) unless using retina display which are often (2,2)
-    // std::cout << "START" << std::endl;
-    for (int n = 0; n < draw_data->CmdListsCount; n++)
-    {
-        const ImDrawList* cmd_list = draw_data->CmdLists[n];
-        // const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
-        // const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
-
-        VERTEX_BUFFER_DESC desc;
-				desc.vertexSize = sizeof(ImDrawVert); 
-				desc.numVerts = cmd_list->VtxBuffer.Size; 
-				desc.usage = GBU_STATIC;
-        SPtr<VertexBuffer> vbuf = VertexBuffer::create(desc);
-        vbuf->writeData(0, sizeof(ImDrawVert) * desc.numVerts, cmd_list->VtxBuffer.Data);
-
-        // assert that imgui index type is 16 bit or 2 bytes.
-        static_assert(sizeof(ImDrawIdx) == 2);
-        INDEX_BUFFER_DESC indexDesc;
-				indexDesc.indexType = IT_16BIT;
-				indexDesc.numIndices = cmd_list->IdxBuffer.Size; 
-				indexDesc.usage = GBU_STATIC;
-        SPtr<IndexBuffer> ibuf = IndexBuffer::create(indexDesc);
-        ibuf->writeData(0, sizeof(ImDrawIdx) * indexDesc.numIndices, cmd_list->IdxBuffer.Data);
-
-
-				UINT32 numBuffers = 1;
-				renderAPI.setVertexBuffers(0, &vbuf, numBuffers);
-				renderAPI.setVertexDeclaration(gVertexDecl);
-				renderAPI.setIndexBuffer(ibuf);
-				renderAPI.setDrawOperation(DOT_TRIANGLE_LIST);
-
-        for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
-        {
-            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
-            if (pcmd->UserCallback)
-            {
-                // User callback, registered via ImDrawList::AddCallback()
-                // (ImDrawCallback_ResetRenderState is a special callback value used by the user to request the renderer to reset render state.)
-                if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
-                    setupRenderState(camera, draw_data, fb_width, fb_height);
-                else
-                    pcmd->UserCallback(cmd_list, pcmd);
-            } else {
-                // Project scissor/clipping rectangles into framebuffer space
-                ImVec4 clip_rect;
-                clip_rect.x = (pcmd->ClipRect.x - clip_off.x) * clip_scale.x;
-                clip_rect.y = (pcmd->ClipRect.y - clip_off.y) * clip_scale.y;
-                clip_rect.z = (pcmd->ClipRect.z - clip_off.x) * clip_scale.x;
-                clip_rect.w = (pcmd->ClipRect.w - clip_off.y) * clip_scale.y;
-
-
-                if (clip_rect.x < fb_width && clip_rect.y < fb_height && clip_rect.z >= 0.0f && clip_rect.w >= 0.0f)
-                {
-                	// std::cout << "clip? " << clip_rect.x << " " << clip_rect.y << " " << fb_width << " " << fb_height << std::endl;
-                	// std::cout << "w z " << clip_rect.w << " " << clip_rect.z << std::endl;
-                    // // Apply scissor/clipping rectangle
-                	assert((clip_rect.z - clip_rect.x) >= 0);
-                	assert(((fb_height - clip_rect.w)) >= 0);
-                	assert(((clip_rect.w - clip_rect.y)) >= 0);
-
-                	// ImVec2 pos = draw_data->DisplayPos;
-                	// std::cout << "SCISSOR ? "                 		
-                 // 		<< (int)(clip_rect.x) << " " 
-                 // 		<< (int)(clip_rect.y) << " " 
-                 // 		<< (int)(clip_rect.z) << " " 
-                 // 		<< (int)(clip_rect.w) << " "
-                 // 	<< std::endl;
-
-                 	renderAPI.setScissorRect(
-                 		(int)(clip_rect.x), 
-                 		(int)(clip_rect.y), 
-                 		(int)(clip_rect.z), 
-                 		(int)(clip_rect.w)
-                 	);
-
-									// UINT32 passIdx = 0;
-									// UINT32 techniqueIdx = gMaterial->getDefaultTechnique();
-									// // have to set pass for every scissor which is kinda annoying
-									// // due to scissors  in the gl render api.
-									// gRendererUtility().setPass(gMaterial->getCore(), passIdx, techniqueIdx);
-
-									assert(pcmd->ElemCount % 3 == 0); // should always be triangle indices.
-									assert(pcmd->VtxOffset == 0); // should always be zero
-									assert(pcmd->IdxOffset < indexDesc.numIndices);
-									UINT32 instanceCount = 1;
-									renderAPI.drawIndexed(
-										pcmd->IdxOffset, 
-										pcmd->ElemCount, 
-										pcmd->VtxOffset, 
-										desc.numVerts,
-										instanceCount);
-                }
-            }
+          assert(pcmd->ElemCount % 3 == 0); // should always be triangle indices.
+          assert(pcmd->VtxOffset == 0); // should always be zero
+          assert(pcmd->IdxOffset < indexDesc.numIndices);
+          UINT32 instanceCount = 1;
+          renderAPI.drawIndexed(pcmd->IdxOffset, pcmd->ElemCount,
+                                pcmd->VtxOffset, desc.numVerts, instanceCount);
         }
+      }
     }
+  }
 }
 
-} // namespace bs::ct
-
-
-namespace bs {	
-
-	// void ImGui_ImplBsf_ShutdownPipeline() {
-	// 	renderExt.reset();
-	// }
-
-	// void ImGui_ImplBsf_SetupPipeline() {
-
-		// HShader shader = BuiltinResources::instance().getShader("Imgui.bsl");
-		// no initial data necessary... so just pass in nullptr.
-		// renderExt = RendererExtension::create<ct::ImguiRendererExtension>(nullptr);
-
-
-	// }
-
-}
+}  // namespace bs::ct

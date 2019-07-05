@@ -259,6 +259,15 @@ namespace bs
 			notifyTransformChanged(TCF_Transform);
 		}
 	}
+	
+	void SceneObject::setLocalTransform(const Transform& transform)
+	{
+		if (mMobility == ObjectMobility::Movable)
+		{
+			mLocalTfrm = transform;
+			notifyTransformChanged(TCF_Transform);
+		}
+	}
 
 	void SceneObject::setWorldPosition(const Vector3& position)
 	{

@@ -1,5 +1,6 @@
 #include "imgui.h"
-#include "./imgui_impl_bsf.h"
+#include "ImGuizmo.h"
+#include "./BsImgui.h"
 
 #include "BsPrerequisites.h"
 #include "Input/BsInputFwd.h"
@@ -9,12 +10,16 @@
 #include "BsApplication.h"
 
 
-// utility operator
+// utility operator for osstream debugging.
 std::ostream& operator<<(std::ostream& s, const ImVec2& vec) {
 	s << vec.x << " " << vec.y;
+	return s;
 }
 
 namespace bs {
+
+// forward declare
+void updateImguiInputs();
 
 enum BsfClientApi {
   BsfClientApi_Unknown,
@@ -25,6 +30,13 @@ enum BsfClientApi {
 // static bool g_MousePressed[3] = {false, false, false};
 static CursorType g_MouseCursors[ImGuiMouseCursor_COUNT] = {};
 static float g_Time = 0.0;
+
+// kinda a hack to copy our local mouswheel to the io at a specific time
+// instead of as part of event since it keeps getting reset between frames...
+// if other inputs are failing to be captured, we'll likely need to store
+// local static variable, and then copy over during the imguiUpdateInputs
+// which is called before the start of each frame. *shrug*.
+static float gMouseWheel = 0.f;
 
 static INT32 displayTop{0};
 static INT32 displayLeft{0};
@@ -97,6 +109,7 @@ bool initImgui() {
 
   updateImguiInputs();
   ImGui::NewFrame();
+  ImGuizmo::BeginFrame();
 
   return true;
 }
@@ -114,6 +127,12 @@ static void ImGui_ImplBsf_UpdateMouseCursor() {
     gCursor().setCursor(g_MouseCursors[imgui_cursor]);
     gCursor().show();
   }
+
+  // kinda a hack to copy our local mouswheel to the io
+  // at a specific time instead of as part of event
+  // since it keeps getting reset between frames...
+  io.MouseWheel = gMouseWheel;
+  gMouseWheel = 0.f;
 }
 
 static HEvent g_OnPointerMovedConn;
@@ -124,15 +143,15 @@ static HEvent g_OnTextInputConn;
 static HEvent g_OnButtonUp;
 static HEvent g_OnButtonDown;
 
+
 void onPointerMoved(const PointerEvent& event) {
   ImGuiIO& io = ImGui::GetIO();
   io.MousePos.x = event.screenPos.x - displayLeft;
   io.MousePos.y = event.screenPos.y - displayTop;
   if (event.mouseWheelScrollAmount > 0) {
-  	std::cout << "MOUSE? " << std::endl;
-    io.MouseWheel += 1;
+    gMouseWheel += 1;
   } else if (event.mouseWheelScrollAmount < 0) {
-    io.MouseWheel -= 1;
+    gMouseWheel -= 1;
   }
 }
 
@@ -149,10 +168,8 @@ void onPointerReleased(const PointerEvent& event) {
   io.MouseDown[2] = event.buttonStates[2];
 }
 void onPointerDoubleClick(const PointerEvent& event) {
-  // ImGuiIO& io = ImGui::GetIO();
-  // io.MouseDown[0] = event.buttonStates[0];
-  // io.MouseDown[1] = event.buttonStates[1];
-  // io.MouseDown[2] = event.buttonStates[2];
+	// doesn't seem to be necessary to track, since imgui has its own logic for
+	// identifying double-clicks I think.
 }
 
 void onCharInput(const TextInputEvent& event) {
@@ -214,11 +231,8 @@ void connectInputs() {
   g_OnTextInputConn = gInput().onCharInput.connect(&onCharInput);
   g_OnButtonUp = gInput().onButtonUp.connect(&onButtonUp);
   g_OnButtonDown = gInput().onButtonDown.connect(&onButtonDown);
-  // g_OnInputCommandConn =
-  // gInput().onInputCommand.connect(onInputCommandEntered);
 }
 
-// void ImGui_ImplBsf_Shutdown() { ImGui_ImplBsf_ShutdownPipeline(); }
 
 void updateImguiInputs() {
   ImGuiIO& io = ImGui::GetIO();
@@ -242,13 +256,17 @@ void updateImguiInputs() {
   displayTop = properties.top;
 
   io.DisplaySize = ImVec2((float)w, (float)h);
+
+  // update imguizmo's rectangle reference.
+	ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+
   if (w > 0 && h > 0)
     io.DisplayFramebufferScale =
         ImVec2((float)display_w / w, (float)display_h / h);
   float current_time = gTime().getTime();
   // std::cout << "current time " << current_time << " " << g_Time << std::endl;
   io.DeltaTime =
-      g_Time > 0.0 ? (float)(current_time - g_Time) : (float)(1.0f / 60.0f);
+      g_Time > 0.0 ? (current_time - g_Time) : (1.0f / 60.0f);
   if (io.DeltaTime == 0.0) io.DeltaTime = 1.f / 60.f;
   g_Time = current_time;
 

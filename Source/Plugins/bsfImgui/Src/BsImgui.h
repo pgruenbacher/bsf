@@ -1,20 +1,24 @@
-
-// dear imgui: Platform Binding for Bsf
-// This needs to be used along with a Renderer (e.g. OpenGL3, Vulkan..)
+// imgui implementation via a RendererExtension. The imgui rendering logic can
+// occure on main thread while the actual frame starting/ending and rendering
+// can occure on the core thread. There's no thread-safety guarantee though,
+// so probably not good for user interface, but it seems relatively safe
+// enough for developer use.
 
 #pragma once
 
-#include "imgui.h"
-#include "BsCorePrerequisites.h"
 #include "Renderer/BsRendererExtension.h"
+
+struct ImDrawData;
 
 namespace bs {
 
-class RenderWindow;
-bool  initImgui();
-void disconnectImgui();
-void  updateImguiInputs();
+/* 
+ * generate the default imgui material with generated fontmap. Should be used as
+ * part of the initialization of the ImguiRendererExtension
+*/
 HMaterial defaultImguiMaterial() ;
+
+/* call demo imgui windows */
 void demoImguiUI();
 
 }   // namespace bs

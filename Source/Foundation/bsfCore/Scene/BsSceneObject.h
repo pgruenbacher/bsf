@@ -210,6 +210,9 @@ namespace bs
 		/**	Sets the local rotation of the object. */
 		void setRotation(const Quaternion& rotation);
 
+		/**	Sets the local transformation of the object. */
+		void setLocalTransform(const Transform& localTransform);
+
 		/**	Sets the world rotation of the object. */
 		void setWorldRotation(const Quaternion& rotation);
 

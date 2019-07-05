@@ -57,4 +57,3 @@ gtest_discover_tests(unit_tests)
 add_custom_target(check ${CMAKE_COMMAND} -E env CTEST_OUTPUT_ON_FAILURE=1
                   ${CMAKE_CTEST_COMMAND} -C $<CONFIG> --verbose
                   WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-

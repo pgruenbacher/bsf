@@ -5,7 +5,7 @@
 #include "Scene/BsTransform.h"
 #include "Input/BsInputFwd.h"
 
-namespace bs::ct {
+namespace bs {
 
 void manipulateMatrix(Matrix4& matrix, const Matrix4& proj, const Matrix4& view,
                       ImGuizmo::OPERATION operation, ImGuizmo::MODE mode) {
@@ -27,13 +27,13 @@ void manipulateMatrix(Matrix4& matrix, const Matrix4& proj, const Matrix4& view,
   matrix = matrix.transpose();
 }
 
-void manipulateMatrix(Matrix4& matrix, const Camera& camera,
+void manipulateMatrix(Matrix4& matrix, const SPtr<Camera> camera,
                       ImGuizmo::OPERATION operation, ImGuizmo::MODE mode) {
-  manipulateMatrix(matrix, camera.getProjectionMatrix(), camera.getViewMatrix(),
+  manipulateMatrix(matrix, camera->getProjectionMatrix(), camera->getViewMatrix(),
                    operation, mode);
 }
 
-void EditTransform(Transform& transform, const Camera& camera) {
+void EditTransform(Transform& transform, const SPtr<Camera> camera) {
 
 	static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::ROTATE);
 	static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
@@ -61,7 +61,7 @@ void EditTransform(Transform& transform, const Camera& camera) {
 
 	Matrix4 matrix = transform.getMatrix();
 
-  manipulateMatrix(matrix, camera.getProjectionMatrix(), camera.getViewMatrix(),
+  manipulateMatrix(matrix, camera->getProjectionMatrix(), camera->getViewMatrix(),
                    mCurrentGizmoOperation, mCurrentGizmoMode);
 
   Vector3 trans, scale;
