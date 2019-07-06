@@ -15,12 +15,20 @@ void manipulateMatrix(Matrix4& matrix, const Matrix4& proj, const Matrix4& view,
                       ImGuizmo::OPERATION operation, ImGuizmo::MODE mode);
 
 /**
- * Updates transform by generating interface fields as well as 3d gizmo.
+ * Updates transform by generating interface fields.
  *
  * @param[in]	transform 	modified by the interface
  * @param[in] camera      used for determining the view projection for the
  * 												interface perspective.
  */
 void EditTransform(Transform& transform, const SPtr<Camera> camera);
+
+/**
+ * Updates transform by generating 3d gizmo. No need for imgui window wrapper.
+ * @param[in]	transform 	modified by the interface
+ * @param[in] camera      used for determining the view projection for the
+ * 												interface perspective.
+ */
+void ManipulateTransform(Transform& transform, const SPtr<Camera> camera);
 
 }  // namespace bs::ct

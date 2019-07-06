@@ -120,22 +120,34 @@ void ImguiRendererExtension::destroy() {
 bool ImguiRendererExtension::check(const ct::Camera& camera) { return true; }
 
 void ImguiRendererExtension::render(const ct::Camera& camera) {
+
   assert(gMaterial.isLoaded());
-  ImGui::Render();
-  renderDrawData(ImGui::GetDrawData(), camera);
-  updateImguiInputs();
-  ImGui::NewFrame();
-  ImGuizmo::BeginFrame();
+  mImguiRenderMutex.lock();
+  if (mCopiedDrawData.Valid) {
+  	// renderDrawData(ImGui::GetDrawData(), camera);
+  	renderDrawData(&mCopiedDrawData, camera);
+  }
+  mImguiRenderMutex.unlock();
 }
 
 // must be called in the main thread. the plugin update method should handle
-// it. at the time i thought it may be necessary to "copy" draw data to the
-// core thread, but it seems to be working with everything running on the core
-// thread while the imgui logic occurs on the main thread. probably due to
-// coincidental timing and not any actual safety. We could maybe do some mutex
-// locking to make sure the main update thread is finished before the core
-// render thread does the overlay.
+// it. we need to copy the cmd list data because the newFrame and imgui begin
+// methods will clear the data otherwise
 void ImguiRendererExtension::syncImDrawDataToCore() {
+	mImguiRenderMutex.lock();
+	  ImGui::Render();
+	  // we clone the cmd list data for each cmd so that when the next frames are resetting the data
+	  // we can still use the current data.
+	  if (ImGui::GetDrawData()) {
+	  	mCopiedDrawData = *ImGui::GetDrawData();
+		  for (int n = 0; n < mCopiedDrawData.CmdListsCount; n++) {
+		    mCopiedDrawData.CmdLists[n] = mCopiedDrawData.CmdLists[n]->CloneOutput();
+		  }
+	  }
+  mImguiRenderMutex.unlock();
+  updateImguiInputs();
+  ImGui::NewFrame();
+  ImGuizmo::BeginFrame();
 }
 
 // setupRenderState is meant to update the global gpu parameters that will be consistent
@@ -196,8 +208,11 @@ void ImguiRendererExtension::renderDrawData(ImDrawData* draw_data,
 	// display which are often (2,2)
   ImVec2 clip_scale = draw_data->FramebufferScale;  
 
+  // std::cout << "CMDS ? " << draw_data->CmdListsCount << std::endl;
   for (int n = 0; n < draw_data->CmdListsCount; n++) {
     const ImDrawList* cmd_list = draw_data->CmdLists[n];
+
+    // std::cout << "Idx ? " << cmd_list->VtxBuffer.Size << " " << cmd_list->IdxBuffer.Size << std::endl;
 
     /*----------  Write out vertex and index buffers  ----------*/
     
@@ -205,6 +220,8 @@ void ImguiRendererExtension::renderDrawData(ImDrawData* draw_data,
     desc.vertexSize = sizeof(ImDrawVert);
     desc.numVerts = cmd_list->VtxBuffer.Size;
     desc.usage = GBU_STATIC;
+    // == 0 seems to happen during multi-threading, we'll just skip.
+    if (desc.numVerts == 0) continue;
     SPtr<VertexBuffer> vbuf = VertexBuffer::create(desc);
     vbuf->writeData(0, sizeof(ImDrawVert) * desc.numVerts,
                     cmd_list->VtxBuffer.Data);
@@ -214,6 +231,8 @@ void ImguiRendererExtension::renderDrawData(ImDrawData* draw_data,
     INDEX_BUFFER_DESC indexDesc;
     indexDesc.indexType = IT_16BIT;
     indexDesc.numIndices = cmd_list->IdxBuffer.Size;
+    // == 0 seems to happen during multi-threading, we'll just skip.
+    if (indexDesc.numIndices == 0) continue;
     indexDesc.usage = GBU_STATIC;
     SPtr<IndexBuffer> ibuf = IndexBuffer::create(indexDesc);
     ibuf->writeData(0, sizeof(ImDrawIdx) * indexDesc.numIndices,
@@ -227,7 +246,6 @@ void ImguiRendererExtension::renderDrawData(ImDrawData* draw_data,
     renderAPI.setDrawOperation(DOT_TRIANGLE_LIST);
 
     /*----------  For each command, scissor and draw  ----------*/
-
     for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++) {
       const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
       if (pcmd->UserCallback) {
@@ -257,6 +275,11 @@ void ImguiRendererExtension::renderDrawData(ImDrawData* draw_data,
 
           assert(pcmd->ElemCount % 3 == 0); // should always be triangle indices.
           assert(pcmd->VtxOffset == 0); // should always be zero
+          // skip if idx offset doesn't make sense. only seems to happen when
+          // doing multi-threading this seems to be an issue. maybe it's just
+          // the renderer happening when the main thread has yet to call the
+          // render logic.
+          if (pcmd->IdxOffset >= indexDesc.numIndices) continue;
           assert(pcmd->IdxOffset < indexDesc.numIndices);
           UINT32 instanceCount = 1;
           renderAPI.drawIndexed(pcmd->IdxOffset, pcmd->ElemCount,

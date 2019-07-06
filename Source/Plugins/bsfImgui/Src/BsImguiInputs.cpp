@@ -106,10 +106,16 @@ void initInputs() {
 
 bool initImgui() {
 	initInputs();
-
   updateImguiInputs();
+
+
+  ImGui::NewFrame();
+  // make empty render.
+  ImGui::Render();
+
   ImGui::NewFrame();
   ImGuizmo::BeginFrame();
+
 
   return true;
 }

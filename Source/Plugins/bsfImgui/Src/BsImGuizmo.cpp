@@ -7,6 +7,10 @@
 
 namespace bs {
 
+
+static ImGuizmo::OPERATION mCurrentGizmoOperation{ImGuizmo::ROTATE};
+static ImGuizmo::MODE mCurrentGizmoMode{ImGuizmo::WORLD};
+
 void manipulateMatrix(Matrix4& matrix, const Matrix4& proj, const Matrix4& view,
                       ImGuizmo::OPERATION operation, ImGuizmo::MODE mode) {
   // unfortunately there's no easy way to access the private float array of the
@@ -20,6 +24,8 @@ void manipulateMatrix(Matrix4& matrix, const Matrix4& proj, const Matrix4& view,
 
   matrix = matrix.transpose();
 
+  // ImGuizmo::SetDrawlist();
+  // ImGuizmo::DrawCube((const float*)(&transView), (const float*)(&transProj), (float*)(&matrix));
   ImGuizmo::Manipulate((const float*)(&transView), (const float*)(&transProj),
                        operation, mode, (float*)(&matrix));
 
@@ -33,10 +39,22 @@ void manipulateMatrix(Matrix4& matrix, const SPtr<Camera> camera,
                    operation, mode);
 }
 
+void ManipulateTransform(Transform& transform, const SPtr<Camera> camera) {
+
+	Matrix4 matrix = transform.getMatrix();
+
+  manipulateMatrix(matrix, camera->getProjectionMatrix(), camera->getViewMatrix(),
+                   mCurrentGizmoOperation, mCurrentGizmoMode);
+
+  Vector3 trans, scale;
+  Quaternion rotation;
+  matrix.decomposition(trans, rotation, scale);
+
+  transform = Transform(trans, rotation, scale);
+}
+
 void EditTransform(Transform& transform, const SPtr<Camera> camera) {
 
-	static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::ROTATE);
-	static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
 
 	/*----------  HotKeys  ----------*/
 	
@@ -60,9 +78,6 @@ void EditTransform(Transform& transform, const SPtr<Camera> camera) {
 
 
 	Matrix4 matrix = transform.getMatrix();
-
-  manipulateMatrix(matrix, camera->getProjectionMatrix(), camera->getViewMatrix(),
-                   mCurrentGizmoOperation, mCurrentGizmoMode);
 
   Vector3 trans, scale;
   Quaternion rotation;

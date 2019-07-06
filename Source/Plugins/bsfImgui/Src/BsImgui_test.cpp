@@ -47,9 +47,12 @@ public:
 
 	void update() override {
 		Component::update();
-
 		Transform transform = mParent->getLocalTransform();
-		EditTransform(transform, gSceneManager().getMainCamera());
+
+    ImGui::Begin("Transform example");    
+			EditTransform(transform, gSceneManager().getMainCamera());
+		ImGui::End();
+		ManipulateTransform(transform, gSceneManager().getMainCamera());
 		// mParent->setTransform(transform);
 		// SO()->setPosition({0,3,0});
 		auto& so = SO();
@@ -85,13 +88,7 @@ TEST_F(ImguiTestSuite, TestImgui) {  // Setup Dear ImGui context
   obj->addComponent<DemoUI>();
 	Application::instance().runMainLoop();
 
-	obj->destroy();
 	Application::instance().unloadPlugin(imguiPlugin);
-
-  // cleanup.
-  // ImGui_ImplBsf_Shutdown();
-  // ImGui::DestroyContext();
-
 }
 
 }

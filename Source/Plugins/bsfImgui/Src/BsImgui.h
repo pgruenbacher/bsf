@@ -1,11 +1,13 @@
 // imgui implementation via a RendererExtension. The imgui rendering logic can
 // occure on main thread while the actual frame starting/ending and rendering
-// can occure on the core thread. There's no thread-safety guarantee though,
-// so probably not good for user interface, but it seems relatively safe
-// enough for developer use.
+// can occure on the core thread. Thread-safety should be achievable since the
+// render cmd data is cloned to the core thread by the main thread. Probably
+// the main thing to worry about is makign sure the input callbacks are
+// handled correctly.
 
 #pragma once
 
+#include "imgui.h"
 #include "Renderer/BsRendererExtension.h"
 
 struct ImDrawData;
@@ -30,6 +32,7 @@ class ImguiRendererExtension : public RendererExtension {
   SPtr<GpuParamBlockBuffer> gBuffer;
   SPtr<VertexDeclaration> gVertexDecl;
   HMaterial gMaterial;
+  ImDrawData mCopiedDrawData;
 
  public:
   ImguiRendererExtension();
