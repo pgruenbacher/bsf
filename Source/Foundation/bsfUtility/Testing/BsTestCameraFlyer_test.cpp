@@ -26,6 +26,18 @@ namespace bs
     return angle;
   }
 
+
+	void CameraFlyer::onTransformChanged(TransformChangedFlags flags) {
+		// const auto& rotation = SO()->getTransform().getRotation();
+		// Radian x;
+		// Radian y;
+		// Radian ignore;
+		// rotation.toEulerAngles(x, y, ignore);
+		// mPitch = Degree(x);
+		// mYaw = Degree(y);
+		// std::cout << "TRANSFOREMD " << x.valueRadians() << " " << y.valueRadians() << std::endl;
+	}
+
   CameraFlyer::CameraFlyer(const HSceneObject& parent)
     :Component(parent)
   {
@@ -41,6 +53,10 @@ namespace bs
     mRotateCam = VirtualButton("RotateCam");
     mHorizontalAxis = VirtualAxis("Horizontal");
     mVerticalAxis = VirtualAxis("Vertical");
+  }
+
+  void CameraFlyer::onInitialized() {  	
+    // setNotifyFlags(TCF_Transform);
   }
 
   void CameraFlyer::update()
@@ -69,8 +85,10 @@ namespace bs
     float frameDelta = gTime().getFrameDelta();
     if (camRotating)
     {
-      mYaw += Degree(gVirtualInput().getAxisValue(mHorizontalAxis) * ROTATION_SPEED);
-      mPitch += Degree(gVirtualInput().getAxisValue(mVerticalAxis) * ROTATION_SPEED);
+    	Quaternion camRot = SO()->getLocalTransform().getRotation();
+
+      Degree mYaw = Degree(gVirtualInput().getAxisValue(mHorizontalAxis) * ROTATION_SPEED);
+      Degree mPitch = Degree(gVirtualInput().getAxisValue(mVerticalAxis) * ROTATION_SPEED);
 
       mYaw = wrapAngle(mYaw);
       mPitch = wrapAngle(mPitch);
@@ -81,7 +99,7 @@ namespace bs
       Quaternion xRot;
       xRot.fromAxisAngle(Vector3::UNIT_X, Radian(mPitch));
 
-      Quaternion camRot = yRot * xRot;
+      camRot = camRot * yRot * xRot;
       camRot.normalize();
 
       SO()->setRotation(camRot);

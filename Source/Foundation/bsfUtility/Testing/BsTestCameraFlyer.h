@@ -15,12 +15,14 @@ namespace bs
 
     /** Triggered once per frame. Allows the component to handle input and move. */
     void update() override;
+    void onInitialized() override;
+		void onTransformChanged(TransformChangedFlags flags) override;
 
   private:
     float mCurrentSpeed; /**< Current speed of the camera. */
 
-    Degree mPitch = Degree(0.0f); /**< Current pitch rotation of the camera (looking up or down). */
-    Degree mYaw = Degree(0.0f); /**< Current yaw rotation of the camera (looking left or right). */
+    // Degree mPitch = Degree(0.0f); /**< Current pitch rotation of the camera (looking up or down). */
+    // Degree mYaw = Degree(0.0f); /**< Current yaw rotation of the camera (looking left or right). */
     bool mLastButtonState = false; /**< Determines was the user rotating the camera last frame. */
 
     VirtualButton mMoveForward; /**< Key binding for moving the camera forward. */
