@@ -696,61 +696,13 @@ namespace bs { namespace ct
 		const TextureProperties& srcProps = source->getProperties();
 		const RenderTextureProperties& dstProps = destination->getProperties();
 
-		Vector2 invTexSize(1.0f / srcProps.getWidth(), 1.0f / srcProps.getHeight());
-
-		std::array<float, MAX_BLUR_SAMPLES> sampleOffsets;
-		std::array<float, MAX_BLUR_SAMPLES> sampleWeights;
-
-		POOLED_RENDER_TEXTURE_DESC tempTextureDesc = POOLED_RENDER_TEXTURE_DESC::create2D(srcProps.getFormat(),
+		POOLED_RENDER_TEXTURE_DESC tempTextureDesc = POOLED_RENDER_TEXTURE_DESC::create2D(srcProps.getFormat(), 
 			dstProps.width, dstProps.height, TU_RENDERTARGET);
 		SPtr<PooledRenderTexture> tempTexture = gGpuResourcePool().get(tempTextureDesc);
 
-		const auto updateParamBuffer =
-			[&source, &filterSize, &sampleWeights, &sampleOffsets, &invTexSize, &paramBuffer = mParamBuffer]
-		(Direction direction, const Color& tint)
-		{
-			const float kernelRadius = calcKernelRadius(source, filterSize, direction);
-			const UINT32 numSamples = calcStdDistribution(kernelRadius, sampleWeights, sampleOffsets);
-
-			for(UINT32 i = 0; i < numSamples; ++i)
-			{
-				Vector4 weight(tint.r, tint.g, tint.b, tint.a);
-				weight *= sampleWeights[i];
-
-				gGaussianBlurParamDef.gSampleWeights.set(paramBuffer, weight, i);
-			}
-
-			UINT32 axis0 = direction == DirHorizontal ? 0 : 1;
-			UINT32 axis1 = (axis0 + 1) % 2;
-
-			for(UINT32 i = 0; i < (numSamples + 1) / 2; ++i)
-			{
-				UINT32 remainder = std::min(2U, numSamples - i * 2);
-
-				Vector4 offset;
-				offset[axis0] = sampleOffsets[i * 2 + 0] * invTexSize[axis0];
-				offset[axis1] = 0.0f;
-
-				if(remainder == 2)
-				{
-					offset[axis0 + 2] = sampleOffsets[i * 2 + 1] * invTexSize[axis0];
-					offset[axis1 + 2] = 0.0f;
-				}
-				else
-				{
-					offset[axis0 + 2] = 0.0f;
-					offset[axis1 + 2] = 0.0f;
-				}
-
-				gGaussianBlurParamDef.gSampleOffsets.set(paramBuffer, offset, i);
-			}
-
-			gGaussianBlurParamDef.gNumSamples.set(paramBuffer, numSamples);
-		};
-
 		// Horizontal pass
 		{
-			updateParamBuffer(DirHorizontal, Color::White);
+			populateBuffer(mParamBuffer, DirHorizontal, source, filterSize, Color::White);
 			mInputTexture.set(source);
 
 			if(mIsAdditive)
@@ -765,7 +717,7 @@ namespace bs { namespace ct
 
 		// Vertical pass
 		{
-			updateParamBuffer(DirVertical, tint);
+			populateBuffer(mParamBuffer, DirVertical, source, filterSize, tint);
 			mInputTexture.set(tempTexture->texture);
 
 			if(mIsAdditive)
@@ -784,7 +736,7 @@ namespace bs { namespace ct
 		}
 	}
 
-	UINT32 GaussianBlurMat::calcStdDistribution(float filterRadius, std::array<float, MAX_BLUR_SAMPLES>& weights,
+	UINT32 GaussianBlurMat::calcStdDistribution(float filterRadius, std::array<float, MAX_BLUR_SAMPLES>& weights, 
 		std::array<float, MAX_BLUR_SAMPLES>& offsets)
 	{
 		filterRadius = Math::clamp(filterRadius, 0.00001f, (float)(MAX_BLUR_SAMPLES - 1));
@@ -796,7 +748,7 @@ namespace bs { namespace ct
 			// Higher value gives more weight to samples near the center
 			constexpr float CENTER_BIAS = 30;
 
-			// Mathematica visualization: Manipulate[Plot[E^(-0.5*centerBias*(Abs[x]*(1/radius))^2), {x, -radius, radius}],
+			// Mathematica visualization: Manipulate[Plot[E^(-0.5*centerBias*(Abs[x]*(1/radius))^2), {x, -radius, radius}], 
 			//	{centerBias, 1, 30}, {radius, 1, 72}]
 			float samplePos = fabs((float)i) * scale;
 			return exp(-0.5f * CENTER_BIAS * samplePos * samplePos);

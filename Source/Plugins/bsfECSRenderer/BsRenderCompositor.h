@@ -160,7 +160,7 @@ namespace ct
 		{
 			auto findIter = mNodeTypes.find(T::getNodeId());
 			if (findIter != mNodeTypes.end())
-				LOGERR("Found two render compositor nodes with the same name \"" + String(T::getNodeId().c_str()) + "\".");
+				BS_LOG(Error, Renderer, "Found two render compositor nodes with the same name \"{0}\".", String(T::getNodeId().c_str()));
 
 			mNodeTypes[T::getNodeId()] = bs_new<TNodeType<T>>();
 		}
@@ -583,6 +583,28 @@ namespace ct
 		void clear() override;
 	};
 
+	/** 
+	 * Generates a number of downsamples of the scene color texture. If MSAA only the first sample is used for
+	 * for generating the downsampled versions.
+	 */
+	class RCNodeSceneColorDownsamples : public RenderCompositorNode
+	{
+	public:
+		static constexpr UINT32 MAX_NUM_DOWNSAMPLES = 6;
+
+		SPtr<PooledRenderTexture> output[MAX_NUM_DOWNSAMPLES];
+		UINT32 availableDownsamples = 0;
+
+		static StringID getNodeId() { return "SceneColorDownsamples"; }
+		static SmallVector<StringID, 4> getDependencies(const RendererView& view);
+	protected:
+		/** @copydoc RenderCompositorNode::render */
+		void render(const RenderCompositorNodeInputs& inputs) override;
+
+		/** @copydoc RenderCompositorNode::clear */
+		void clear() override;
+	};
+
 	/** Resolves the depth buffer (if multi-sampled). Otherwise just references the original depth buffer. */
 	class RCNodeResolvedSceneDepth : public RenderCompositorNode
 	{
@@ -597,8 +619,6 @@ namespace ct
 
 		/** @copydoc RenderCompositorNode::clear */
 		void clear() override;
-
-		bool mPassThrough = false;
 	};
 
 	/** Builds the hierarchical Z buffer. */
@@ -675,6 +695,20 @@ namespace ct
 		void clear() override;
 
 		SPtr<PooledRenderTexture> mPooledOutput;
+	};
+
+	/** Renders the screen-space lens flare effect. */
+	class RCNodeScreenSpaceLensFlare : public RenderCompositorNode
+	{
+	public:
+		static StringID getNodeId() { return "ScreenSpaceLensFlare"; }
+		static SmallVector<StringID, 4> getDependencies(const RendererView& view);
+	protected:
+		/** @copydoc RenderCompositorNode::render */
+		void render(const RenderCompositorNodeInputs& inputs) override;
+
+		/** @copydoc RenderCompositorNode::clear */
+		void clear() override;
 	};
 
 	/** @} */
