@@ -473,7 +473,7 @@ namespace bs { namespace ct
 		}
 		else
 		{
-			GpuResourcePool& resPool = GpuResourcePool::instance();
+			GpuResourcePool& resPool = gGpuResourcePool();
 			SPtr<PooledRenderTexture> finalCoeffs = resPool.get(IrradianceAccumulateCubeSHMat::getOutputDesc());
 
 			filterCubemapForIrradianceNonCompute(cubemap, 0, finalCoeffs->renderTexture);

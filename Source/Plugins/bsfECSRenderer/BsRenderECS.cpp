@@ -125,6 +125,8 @@ namespace bs { namespace ct
 		RenderCompositor::registerNodeType<RCNodeHalfSceneColor>();
 		RenderCompositor::registerNodeType<RCNodeBloom>();
 		RenderCompositor::registerNodeType<RCNodeEyeAdaptation>();
+		RenderCompositor::registerNodeType<RCNodeScreenSpaceLensFlare>();
+		RenderCompositor::registerNodeType<RCNodeSceneColorDownsamples>();
 	}
 
 	void RenderECS::destroyCore()
@@ -434,6 +436,8 @@ namespace bs { namespace ct
 			if(rtInfo.target->getProperties().isWindow)
 				PROFILE_CALL(RenderAPI::instance().swapBuffers(rtInfo.target), "Swap buffers");
 		}
+		// Tick pool frame
+		GpuResourcePool::instance().update();
 
 		gProfilerGPU().endFrame();
 		gProfilerCPU().endSample("Render");
@@ -641,11 +645,10 @@ namespace bs { namespace ct
 					{
 						if (!probeInfo.errorFlagged)
 						{
-							String errMsg = StringUtil::format("Cubemap texture invalid to use as a reflection cubemap. "
-								"Check texture size (must be {0}x{0}) and mip-map count",
+							BS_LOG(Error, Renderer, "Cubemap texture invalid to use as a reflection cubemap. " 
+								"Check texture size (must be {0}x{0}) and mip-map count", 
 								IBLUtility::REFLECTION_CUBEMAP_SIZE);
 
-							LOGERR(errMsg);
 							probeInfo.errorFlagged = true;
 						}
 					}
