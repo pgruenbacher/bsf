@@ -53,8 +53,6 @@ public:
 			EditTransform(transform, gSceneManager().getMainCamera());
 		ImGui::End();
 		ManipulateTransform(transform, gSceneManager().getMainCamera());
-		// mParent->setTransform(transform);
-		// SO()->setPosition({0,3,0});
 		auto& so = SO();
 		so->setLocalTransform(transform);
 	}	
