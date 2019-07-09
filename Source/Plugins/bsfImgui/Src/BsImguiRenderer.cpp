@@ -76,6 +76,26 @@ HTexture createDefaultFonts()
   return texture;
 }
 
+HShader defaultImguiShader() {
+	Path imguiPath = BuiltinResources::instance().getRawShaderFolder().append("Imgui.bsl");
+	HShader shader = gImporter().import<Shader>(imguiPath);
+	return shader;
+}
+
+void defaultImguiParams(SPtr<GpuParams> params, SPtr<GraphicsPipelineState> pipeline) {
+	Path imguiPath = BuiltinResources::instance().getRawShaderFolder().append("Imgui.bsl");
+	HShader shader = gImporter().import<Shader>(imguiPath);
+	HMaterial material = Material::create(shader);
+	HTexture texture = createDefaultFonts();
+	
+	SPtr<Technique> technique = shader->getCompatibleTechniques()[0];
+	SPtr<Pass> pass = technique->getPass(0);
+	pass->compile();
+	pipeline = pass->getGraphicsPipelineState();
+	params = GpuParams::create(pipeline);
+	params->setTexture(GPT_FRAGMENT_PROGRAM, "gMainTexture", texture);
+}
+
 HMaterial defaultImguiMaterial() {
 	Path imguiPath = BuiltinResources::instance().getRawShaderFolder().append("Imgui.bsl");
 	HShader shader = gImporter().import<Shader>(imguiPath);
@@ -111,7 +131,16 @@ ImguiRendererExtension::ImguiRendererExtension()
 // ... other extension code
 
 void ImguiRendererExtension::initialize(const Any& data) {
-  gMaterial = any_cast<HMaterial>(data);
+  // gMaterial = any_cast<HMaterial>(data);
+	auto tuple = any_cast<std::tuple<HShader, HTexture>>(data);
+	mShader = std::get<0>(tuple);
+	mTexture = std::get<1>(tuple);
+	SPtr<Technique> technique = mShader->getCore()->getCompatibleTechniques()[0];
+	SPtr<Pass> pass = technique->getPass(0);
+	pass->compile();
+	mPipeline = pass->getGraphicsPipelineState();
+	mParams = GpuParams::create(mPipeline);
+	mParams->setTexture(GPT_FRAGMENT_PROGRAM, "gMainTexture", mTexture->getCore());
 }
 
 void ImguiRendererExtension::destroy() {
@@ -121,7 +150,7 @@ bool ImguiRendererExtension::check(const ct::Camera& camera) { return true; }
 
 void ImguiRendererExtension::render(const ct::Camera& camera) {
 
-  assert(gMaterial.isLoaded());
+  // assert(gMaterial.isLoaded());
   mImguiRenderMutex.lock();
   if (mCopiedDrawData.Valid) {
   	// renderDrawData(ImGui::GetDrawData(), camera);
@@ -171,20 +200,26 @@ void ImguiRendererExtension::setupRenderState(const ct::Camera& camera,
   gImguiParamBlockDef.gViewportYFlip.set(gBuffer, viewflipYFlip);
   gBuffer->flushToGPU();
 
-  UINT32 passIdx = 0;
-  UINT32 techniqueIdx = gMaterial->getDefaultTechnique();
+  // UINT32 passIdx = 0;
+  // UINT32 techniqueIdx = gMaterial->getDefaultTechnique();
 
-  SPtr<GpuParamsSet> paramSet =
-      gMaterial->getCore()->createParamsSet(techniqueIdx);
-  auto mParamBufferIdx = paramSet->getParamBlockBufferIndex("GUIParams");
-  // confirm that invalid param buffer indices are (UINT32-1)
-  assert(paramSet->getParamBlockBufferIndex("NoParamsTest") == (UINT32)-1);
-  // confirm that buffer index is valid
-  assert(mParamBufferIdx != (UINT32)-1);
-  gMaterial->getCore()->updateParamsSet(paramSet);
-  paramSet->setParamBlockBuffer(mParamBufferIdx, gBuffer, false);
-  gRendererUtility().setPass(gMaterial->getCore(), passIdx, techniqueIdx);
-  gRendererUtility().setPassParams(paramSet);
+  // SPtr<GpuParamsSet> paramSet =
+  //     gMaterial->getCore()->createParamsSet(techniqueIdx);
+  // auto mParamBufferIdx = paramSet->getParamBlockBufferIndex("GUIParams");
+  // // confirm that invalid param buffer indices are (UINT32-1)
+  // assert(paramSet->getParamBlockBufferIndex("NoParamsTest") == (UINT32)-1);
+  // // confirm that buffer index is valid
+  // assert(mParamBufferIdx != (UINT32)-1);
+  // gMaterial->getCore()->updateParamsSet(paramSet);
+  // paramSet->setParamBlockBuffer(mParamBufferIdx, gBuffer, false);
+  // gRendererUtility().setPass(gMaterial->getCore(), passIdx, techniqueIdx);
+  // gRendererUtility().setPassParams(paramSet);
+
+  auto& renderAPI = RenderAPI::instance();
+
+  mParams->setParamBlockBuffer(GPT_VERTEX_PROGRAM, "GUIParams", gBuffer);
+  renderAPI.setGraphicsPipeline(mPipeline);
+  renderAPI.setGpuParams(mParams);
 }
 
 void ImguiRendererExtension::renderDrawData(ImDrawData* draw_data,

@@ -19,7 +19,8 @@ namespace bs {
  * part of the initialization of the ImguiRendererExtension
 */
 HMaterial defaultImguiMaterial() ;
-
+HShader defaultImguiShader();
+HTexture createDefaultFonts();
 /* call demo imgui windows */
 void demoImguiUI();
 
@@ -32,7 +33,11 @@ class ImguiRendererExtension : public RendererExtension {
   SPtr<GpuParamBlockBuffer> gBuffer;
   SPtr<VertexDeclaration> gVertexDecl;
   HMaterial gMaterial;
+  SPtr<GpuParams> mParams;
+  SPtr<GraphicsPipelineState> mPipeline;
   ImDrawData mCopiedDrawData;
+  HTexture mTexture;
+  HShader mShader;
 
  public:
   ImguiRendererExtension();
